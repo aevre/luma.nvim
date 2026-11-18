@@ -35,6 +35,7 @@ end
 
 function M.cancel()
   require("luma.session").cancel()
+  require("luma.tools").cancel()
 end
 
 function M.new()

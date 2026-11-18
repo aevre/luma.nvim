@@ -137,14 +137,29 @@ local function test_tools_registry()
   local request = require("luma.request")
   local original_start = request.start
   local received
-  rawset(request, "start", function(model, messages)
+  local killed = 0
+  local callbacks
+  rawset(request, "start", function(model, messages, opts)
     received = { model = model, messages = messages }
-    return { kill = function() end }
+    callbacks = opts
+    return {
+      kill = function()
+        killed = killed + 1
+      end,
+    }
   end)
   local handle = tools.generate({ system = "system", user = "user", model = "only", loading = false })
   assert(received.model.name == "only")
   assert(received.messages[1].content == "system" and received.messages[2].content == "user")
+  assert(vim.fn.maparg("<C-c>", "n", false, true).desc == "Cancel Luma task")
+  handle.cancel()
   handle.kill()
+  assert(killed == 1)
+  assert(vim.fn.maparg("<C-c>", "n", false, true).buffer ~= 1)
+  tools.generate({ system = "system", user = "user", model = "only", loading = false })
+  assert(vim.fn.maparg("<C-c>", "n", false, true).desc == "Cancel Luma task")
+  callbacks.on_error("test error")
+  assert(vim.fn.maparg("<C-c>", "n", false, true).buffer ~= 1)
   rawset(request, "start", original_start)
   local called
   tools.setup({

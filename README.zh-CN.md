@@ -115,7 +115,7 @@ require("luma").setup({
 | --- | --- |
 | `:LumaToggle` | 显示或隐藏聊天界面。 |
 | `:LumaSubmit [prompt]` | 提交参数或当前 Prompt buffer。 |
-| `:LumaCancel` | 取消正在进行的请求。 |
+| `:LumaCancel` | 取消正在进行的 Chat 和一次性工具请求。 |
 | `:LumaNew` | 创建新的聊天会话。 |
 | `:LumaHistory` | 通过 `vim.ui.select` 恢复历史会话。 |
 | `:LumaModel [name]` | 选择或切换当前模型。 |
@@ -206,10 +206,11 @@ Handler 会收到：
 - `ctx.name`、`ctx.tool` 和 `ctx.has_range`。
 - 用于收集输入的 `ctx.visual()` 和 `ctx.source(has_range)`。
 - 用于一次性请求和结果窗口的 `ctx.generate(spec)`。
+- 用于取消进行中一次性工具请求的 `ctx.cancel()`。
 - 用于独立双窗口工具会话的 `ctx.chat(spec)`。
 - `ctx.loading(opts)`、`ctx.panel(title, keys, opts)` 和 `ctx.strip_fence(text)`。
 
-`ctx.generate()` 支持 `title`、`system`、`user`、`model`、`loading`、`window` 和 `on_done(result, output)`。它显示不抢焦点的光标旁 loading，不修改来源 buffer，返回可取消 handle，并移除结果外层的 Markdown fence。
+`ctx.generate()` 支持 `title`、`system`、`user`、`model`、`loading`、`window` 和 `on_done(result, output)`。它显示不抢焦点的光标旁 loading，不修改来源 buffer，返回带 `cancel()` 和兼容别名 `kill()` 的 handle，并移除结果外层的 Markdown fence。生成期间，Luma 会在来源 buffer 临时绑定配置中的取消键（默认 `<C-c>`）；也可以使用 `:LumaCancel` 或 `ctx.cancel()`。已有的 buffer-local 映射不会被覆盖。
 
 `ctx.chat()` 的模型、历史和请求上下文与主聊天隔离。每次提交只发送工具 system prompt 和当前输入。Prompt 是唯一带 footer 的窗口；Output 只显示结果。使用 `i` 聚焦 Prompt、`m` 选择模型、`h` 查看工具历史。
 

@@ -2,6 +2,57 @@ local Win = require("win")
 
 local M = {}
 local registry = {}
+local pending = {}
+local cancel_maps = {}
+local next_request_id = 0
+
+local function remove_cancel_map(bufnr)
+  local state = cancel_maps[bufnr]
+  if not state then
+    return
+  end
+  state.count = state.count - 1
+  if state.count > 0 then
+    return
+  end
+  cancel_maps[bufnr] = nil
+  if state.mapped and vim.api.nvim_buf_is_valid(bufnr) then
+    pcall(vim.keymap.del, "n", state.key, { buffer = bufnr })
+    pcall(vim.keymap.del, "i", state.key, { buffer = bufnr })
+  end
+end
+
+local function add_cancel_map(bufnr)
+  local state = cancel_maps[bufnr]
+  if state then
+    state.count = state.count + 1
+    return
+  end
+  local key = require("luma.config").get().keys.cancel
+  state = { count = 1, key = key, mapped = false }
+  cancel_maps[bufnr] = state
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local normal = vim.fn.maparg(key, "n", false, true)
+  local insert = vim.fn.maparg(key, "i", false, true)
+  if normal.buffer == 1 or insert.buffer == 1 then
+    return
+  end
+  state.mapped = true
+  vim.keymap.set({ "n", "i" }, key, function()
+    M.cancel()
+  end, { buffer = bufnr, desc = "Cancel Luma task" })
+end
+
+local function finish_request(id)
+  local active = pending[id]
+  if not active then
+    return
+  end
+  pending[id] = nil
+  remove_cancel_map(active.bufnr)
+end
 
 local function close_help()
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
@@ -174,6 +225,9 @@ function M.generate(title, system, user, on_done, opts)
   end
   local loading = type(spec.loading) == "string" and { text = spec.loading } or spec.loading
   local result = ""
+  local bufnr = vim.api.nvim_get_current_buf()
+  next_request_id = next_request_id + 1
+  local request_id = next_request_id
   local clear_spinner = spinner(loading)
   local model_name = spec.model or require("luma.config").get().model
   local model = require("luma.models").get(model_name)
@@ -181,7 +235,22 @@ function M.generate(title, system, user, on_done, opts)
     clear_spinner()
     error("luma: unknown model " .. tostring(model_name))
   end
-  local request = require("luma.request").start(model, {
+  local request
+  local function cancel()
+    if not pending[request_id] then
+      return
+    end
+    finish_request(request_id)
+    clear_spinner()
+    if request then
+      request.kill()
+    end
+    vim.notify("luma: task cancelled", vim.log.levels.INFO)
+  end
+  local handle = { kill = cancel, cancel = cancel }
+  pending[request_id] = { cancel = cancel, bufnr = bufnr }
+  add_cancel_map(bufnr)
+  request = require("luma.request").start(model, {
     { role = "system", content = spec.system },
     { role = "user", content = spec.user },
   }, {
@@ -189,6 +258,7 @@ function M.generate(title, system, user, on_done, opts)
       result = result .. text
     end,
     on_error = function(err)
+      finish_request(request_id)
       clear_spinner()
       if spec.on_error then
         spec.on_error(err)
@@ -196,6 +266,7 @@ function M.generate(title, system, user, on_done, opts)
       vim.notify("luma: " .. err, vim.log.levels.ERROR)
     end,
     on_done = function()
+      finish_request(request_id)
       clear_spinner()
       result = M.strip_fence(result)
       local dimensions = result_size(result)
@@ -214,13 +285,15 @@ function M.generate(title, system, user, on_done, opts)
       end
     end,
   })
-  local handle = {
-    kill = function()
-      clear_spinner()
-      request.kill()
-    end,
-  }
   return handle
+end
+
+function M.cancel()
+  local active = vim.tbl_values(pending)
+  for _, request in ipairs(active) do
+    request.cancel()
+  end
+  return #active > 0
 end
 
 local function declarative(spec, ctx)
@@ -283,6 +356,7 @@ function M.names()
 end
 
 function M.setup(tools)
+  M.cancel()
   registry = {}
   for name, spec in pairs(tools or {}) do
     if spec ~= false then
@@ -316,6 +390,7 @@ function M.run(name, has_range)
     chat = function(chat_spec)
       return require("luma.tool_chat").open(name, vim.tbl_extend("force", { model = spec.model }, chat_spec or {}))
     end,
+    cancel = M.cancel,
     loading = M.loading,
     panel = M.panel,
     strip_fence = M.strip_fence,

@@ -115,7 +115,7 @@ Set `debug = true` to emit `vim.log.levels.DEBUG` lifecycle messages for LLM and
 | --- | --- |
 | `:LumaToggle` | Show or hide the chat UI. |
 | `:LumaSubmit [prompt]` | Submit the argument or current Prompt buffer. |
-| `:LumaCancel` | Cancel the active request. |
+| `:LumaCancel` | Cancel active chat and one-off tool requests. |
 | `:LumaNew` | Start a new chat session. |
 | `:LumaHistory` | Restore a saved chat session with `vim.ui.select`. |
 | `:LumaModel [name]` | Select or switch the active model. |
@@ -206,10 +206,11 @@ Handlers receive:
 - `ctx.name`, `ctx.tool`, and `ctx.has_range`.
 - `ctx.visual()` and `ctx.source(has_range)` for input collection.
 - `ctx.generate(spec)` for one-off requests and result windows.
+- `ctx.cancel()` to cancel active one-off tool requests.
 - `ctx.chat(spec)` for an independent two-window tool session.
 - `ctx.loading(opts)`, `ctx.panel(title, keys, opts)`, and `ctx.strip_fence(text)`.
 
-`ctx.generate()` accepts `title`, `system`, `user`, `model`, `loading`, `window`, and `on_done(result, output)`. It displays a non-focusable cursor-adjacent spinner, does not modify the source buffer, returns a cancellable handle, and strips a surrounding Markdown fence from the completed result.
+`ctx.generate()` accepts `title`, `system`, `user`, `model`, `loading`, `window`, and `on_done(result, output)`. It displays a non-focusable cursor-adjacent spinner, does not modify the source buffer, returns a handle with `cancel()` and the compatible `kill()` alias, and strips a surrounding Markdown fence from the completed result. While generation is pending, Luma temporarily maps the configured cancel key (default `<C-c>`) in the source buffer; `:LumaCancel` and `ctx.cancel()` provide global alternatives. Existing buffer-local mappings are never replaced.
 
 `ctx.chat()` keeps its model, history, and request context separate from the main chat. Each submission sends only the tool system prompt and current input. The Prompt window owns the single footer; the Output window renders only the result. Use `i` for Prompt, `m` for model selection, and `h` for tool history.
 
