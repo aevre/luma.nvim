@@ -1,6 +1,36 @@
 local Win = require("win")
 
-local M = { output = nil, input = nil, models = nil, history = nil }
+---@class luma.Window
+---@field buf integer
+---@field win integer
+---@field opts table
+---@field valid fun(self: luma.Window): boolean
+---@field buf_valid fun(self: luma.Window): boolean
+---@field show fun(self: luma.Window): luma.Window
+---@field hide fun(self: luma.Window): luma.Window
+---@field destroy fun(self: luma.Window)
+---@field focus fun(self: luma.Window)
+---@field text fun(self: luma.Window): string
+---@field set_title fun(self: luma.Window, title: string)
+---@field toggle_help fun(self: luma.Window, opts?: table)
+
+---@class luma.UI
+---@field output? luma.Window
+---@field input? luma.Window
+---@field models? luma.Window
+---@field history? luma.Window
+---@field refresh_sidebars fun()
+---@field open fun()
+---@field hide fun()
+---@field destroy fun()
+---@field valid fun(): boolean
+---@field input_text fun(): string
+---@field set_input fun(text?: string)
+---@field clear_input fun()
+---@field render fun(lines: string[], title?: string, streaming?: boolean)
+---@field render_stream fun(delta: string, title?: string)
+---@field focus_input fun()
+local M = {} ---@type luma.UI
 local sidebar = { models = {}, history = {} }
 local source_window
 local closing_group = false
@@ -27,7 +57,8 @@ end
 local function dim_source_window()
   local win = vim.api.nvim_get_current_win()
   for _, name in ipairs({ "output", "input", "models", "history" }) do
-    if M[name] and M[name].win == win then
+    local window = M[name] ---@type luma.Window?
+    if window and window.win == win then
       return
     end
   end
@@ -60,8 +91,9 @@ local function toggle_help(self)
 end
 
 local function focus(target)
-  if M[target] and M[target]:valid() then
-    M[target]:focus()
+  local window = M[target] ---@type luma.Window?
+  if window and window:valid() then
+    window:focus()
     if target == "input" and require("luma.config").get().ui.start_insert then
       vim.cmd("startinsert")
     end
@@ -358,8 +390,9 @@ function M.hide()
   closing_group = true
   restore_source_window()
   for _, name in ipairs({ "output", "input", "models", "history" }) do
-    if M[name] then
-      M[name]:hide()
+    local window = M[name] ---@type luma.Window?
+    if window then
+      window:hide()
     end
   end
   closing_group = false
@@ -372,8 +405,9 @@ function M.destroy()
   closing_group = true
   restore_source_window()
   for _, name in ipairs({ "output", "input", "models", "history" }) do
-    if M[name] then
-      M[name]:destroy()
+    local window = M[name] ---@type luma.Window?
+    if window then
+      window:destroy()
       M[name] = nil
     end
   end
@@ -381,7 +415,7 @@ function M.destroy()
 end
 
 function M.valid()
-  return M.output and M.input and M.output:valid() and M.input:valid()
+  return M.output ~= nil and M.input ~= nil and M.output:valid() and M.input:valid()
 end
 
 function M.input_text()
