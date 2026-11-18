@@ -84,7 +84,7 @@ function M.start(model, messages, opts)
       if not data or done then
         return
       end
-      if stream then
+      if stream and parser then
         local _, err = parser(data, false)
         parse_error = parse_error or err
       else
@@ -101,7 +101,7 @@ function M.start(model, messages, opts)
       if done then
         return
       end
-      if stream and not parse_error then
+      if stream and parser and not parse_error then
         local _, err = parser("", true)
         parse_error = err
       end
