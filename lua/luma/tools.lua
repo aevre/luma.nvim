@@ -216,22 +216,9 @@ function M.panel(title, keys, opts)
   }, opts or {}))
 end
 
-function M.generate(title, system, user, on_done, opts)
-  local spec
-  if type(title) == "table" then
-    spec = title
-  else
-    opts = opts or {}
-    local window = vim.deepcopy(opts)
-    window.loading = nil
-    spec = {
-      title = title,
-      system = system,
-      user = user,
-      on_done = on_done,
-      loading = opts.loading,
-      window = window,
-    }
+function M.generate(spec)
+  if type(spec) ~= "table" then
+    error("luma: generate requires a spec table")
   end
   if type(spec.system) ~= "string" or type(spec.user) ~= "string" then
     error("luma: generate requires string system and user fields")
@@ -310,24 +297,29 @@ function M.cancel()
 end
 
 local function declarative(spec, ctx)
+  local source = spec.source or "auto"
   local input
-  if spec.input == "selection" then
+  if source == "auto" then
+    input = M.source(ctx.has_range)
+  elseif source == "selection" then
     if not ctx.has_range then
       vim.notify("luma: " .. ctx.name .. " requires a visual selection", vim.log.levels.ERROR)
       return
     end
     input = M.source(true)
-  elseif spec.input == "prompt" then
-    input = vim.fn.input(spec.prompt_title or (ctx.name .. ": "))
+  elseif source == "buffer" then
+    input = M.source(false)
+  elseif source == "prompt" then
+    input = vim.fn.input(spec.input_title or (ctx.name .. ": "))
   else
-    input = M.source(ctx.has_range)
+    error("luma: tool " .. ctx.name .. " has invalid source " .. tostring(source))
   end
   if not input or input == "" then
     return
   end
   local system = type(spec.system) == "function" and spec.system(ctx, input) or spec.system
-  local prompt = type(spec.prompt) == "function" and spec.prompt(ctx, input) or spec.prompt
-  local user = prompt and (prompt .. "\n\n" .. input) or input
+  local instruction = type(spec.instruction) == "function" and spec.instruction(ctx, input) or spec.instruction
+  local user = instruction and (instruction .. "\n\n" .. input) or input
   return M.generate({
     title = spec.title or (" " .. ctx.name .. "… "),
     system = system or "Follow the user's request.",
@@ -345,10 +337,10 @@ function M.register(name, spec)
     error("luma: tool name must be a non-empty string")
   end
   if type(spec) == "function" then
-    spec = { handler = spec }
+    spec = { run = spec }
   end
-  if type(spec) ~= "table" or (type(spec.handler) ~= "function" and spec.system == nil) then
-    error("luma: tool " .. name .. " needs a handler or system prompt")
+  if type(spec) ~= "table" or (type(spec.run) ~= "function" and spec.system == nil) then
+    error("luma: tool " .. name .. " needs run or system")
   end
   registry[name] = spec
   return M
@@ -394,11 +386,11 @@ function M.run(name, has_range)
     has_range = has_range == true,
     visual = M.visual,
     source = M.source,
-    generate = function(generate_spec, ...)
+    generate = function(generate_spec)
       if type(generate_spec) == "table" and generate_spec.model == nil then
         generate_spec = vim.tbl_extend("force", { model = spec.model }, generate_spec)
       end
-      return M.generate(generate_spec, ...)
+      return M.generate(generate_spec)
     end,
     chat = function(chat_spec)
       return require("luma.tool_chat").open(name, vim.tbl_extend("force", { model = spec.model }, chat_spec or {}))
@@ -408,8 +400,8 @@ function M.run(name, has_range)
     panel = M.panel,
     strip_fence = M.strip_fence,
   }
-  if spec.handler then
-    return spec.handler(ctx)
+  if spec.run then
+    return spec.run(ctx)
   end
   return declarative(spec, ctx)
 end

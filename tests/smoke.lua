@@ -195,7 +195,7 @@ local function test_tools_registry()
     end,
     prompt_tool = {
       system = "Return a short answer.",
-      input = "buffer",
+      source = "buffer",
     },
     ask = false,
   })
@@ -204,6 +204,86 @@ local function test_tools_registry()
   tools.run("custom", true)
   assert(called == true)
   assert(vim.tbl_contains(tools.names(), "prompt_tool"))
+
+  local declarative_original = vim.api.nvim_get_current_buf()
+  local declarative_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_current_buf(declarative_buf)
+  vim.api.nvim_buf_set_lines(declarative_buf, 0, -1, false, { "one", "two", "three" })
+  local original_generate = tools.generate
+  local generated
+  rawset(tools, "generate", function(spec)
+    generated = spec
+    return spec
+  end)
+  tools.setup({
+    auto = {
+      system = "auto system",
+      instruction = "auto instruction",
+    },
+    buffer = {
+      source = "buffer",
+      system = function(_, input)
+        return "buffer system: " .. input
+      end,
+    },
+    prompt = {
+      source = "prompt",
+      input_title = "Question: ",
+      system = "prompt system",
+    },
+    invalid = {
+      source = "unknown",
+      system = "invalid",
+    },
+  })
+  tools.run("auto", false)
+  assert(generated.system == "auto system")
+  assert(generated.user == "auto instruction\n\none\ntwo\nthree")
+  local visual = tools.visual
+  rawset(tools, "visual", function()
+    return "selected", { bufnr = vim.api.nvim_get_current_buf() }
+  end)
+  tools.setup({
+    auto = { system = "auto" },
+    selection = { source = "selection", system = "selection" },
+    buffer = { source = "buffer", system = "buffer" },
+  })
+  tools.run("auto", true)
+  assert(generated.user == "selected")
+  tools.run("selection", true)
+  assert(generated.user == "selected")
+  tools.run("buffer", true)
+  assert(generated.user == "one\ntwo\nthree")
+  local selection_ok = pcall(tools.run, "selection", false)
+  assert(selection_ok and generated.user == "one\ntwo\nthree")
+  rawset(tools, "visual", visual)
+  tools.setup({
+    auto = { system = "auto system", instruction = "auto instruction" },
+    buffer = {
+      source = "buffer",
+      system = function(_, input)
+        return "buffer system: " .. input
+      end,
+    },
+    prompt = {
+      source = "prompt",
+      input_title = "Question: ",
+      system = "prompt system",
+    },
+    invalid = { source = "unknown", system = "invalid" },
+  })
+  tools.run("buffer", true)
+  assert(generated.system == "buffer system: one\ntwo\nthree")
+  assert(generated.user == "one\ntwo\nthree")
+  vim.api.nvim_feedkeys(vim.keycode("question<CR>"), "t", false)
+  tools.run("prompt", false)
+  assert(generated.system == "prompt system" and generated.user == "question")
+  local source_ok, source_err = pcall(tools.run, "invalid", false)
+  assert(not source_ok and type(source_err) == "string" and source_err:match("invalid source unknown"))
+  rawset(tools, "generate", original_generate)
+  vim.api.nvim_set_current_buf(declarative_original)
+  vim.api.nvim_buf_delete(declarative_buf, { force = true })
+
   tools.setup()
   assert(#tools.names() == 0)
   assert(not tools.get("custom"))

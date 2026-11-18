@@ -128,8 +128,8 @@ end
 
 return {
   ask = {
-    input = "prompt",
-    prompt_title = "Luma ask: ",
+    source = "prompt",
+    input_title = "Luma ask: ",
     title = " Ask… ",
     loading = { text = "Answering" },
     system = "Answer the user's question clearly and concisely.",
@@ -141,7 +141,7 @@ return {
     system = "Explain the supplied code clearly and answer in Chinese.",
   },
   translate = {
-    handler = function(ctx)
+    run = function(ctx)
       ctx.chat({
         title = "Translator",
         system = TRANSLATE_PROMPT,
@@ -150,7 +150,7 @@ return {
     end,
   },
   word_translate = {
-    handler = function(ctx)
+    run = function(ctx)
       local text = ctx.has_range and ctx.source(true) or vim.fn.expand("<cword>")
       if text and text ~= "" then
         ctx.generate({
@@ -163,7 +163,7 @@ return {
     end,
   },
   tests = {
-    input = "selection",
+    source = "selection",
     title = " Tests… ",
     loading = { text = "Generating tests" },
     system = "Write useful test cases for the supplied code. Return only test code, without Markdown fences or explanation. Follow the source language and its established test conventions.",
