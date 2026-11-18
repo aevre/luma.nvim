@@ -194,8 +194,9 @@ function M.set_model(name)
 end
 
 function M.attach(text)
-  require("luma.ui").open()
-  local input = require("luma.ui").input
+  local ui = require("luma.ui")
+  ui.open()
+  local input = assert(ui.input)
   local current = vim.trim(input:text())
   local attached = ("<selection>\n%s\n</selection>"):format(text)
   vim.api.nvim_buf_set_lines(
