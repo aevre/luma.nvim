@@ -38,6 +38,27 @@ local function read_file(path, limit)
   return data
 end
 
+local function buffer_name(bufnr)
+  local name = vim.api.nvim_buf_get_name(bufnr)
+  return name ~= "" and vim.fn.fnamemodify(name, ":~:.") or ("[%d] [No Name]"):format(bufnr)
+end
+
+local function resolve_buffer(value, fallback)
+  if not value or value == "" then
+    return fallback
+  end
+  local number = tonumber(value)
+  if number and vim.api.nvim_buf_is_valid(number) then
+    return number
+  end
+  for _, info in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+    if value == buffer_name(info.bufnr) or value == vim.api.nvim_buf_get_name(info.bufnr) then
+      return info.bufnr
+    end
+  end
+  return nil
+end
+
 local function diagnostics(bufnr)
   local lines = {}
   for _, diagnostic in ipairs(vim.diagnostic.get(bufnr)) do
@@ -67,14 +88,24 @@ function M.expand(text, opts)
     return true
   end
 
-  if text:find("/buffer", 1, true) then
-    local content = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
-    local name = vim.api.nvim_buf_get_name(bufnr)
-    local ok, err = add(name ~= "" and name or "current-buffer", content)
-    if not ok then
-      return nil, err
+  local buffer_error
+  text = text:gsub("/buffer%s*([^%s/]*)", function(value)
+    if buffer_error then
+      return ""
     end
-    text = text:gsub("/buffer", "")
+    local target = resolve_buffer(value, bufnr)
+    if not target then
+      buffer_error = "unknown buffer: " .. value
+      return ""
+    end
+    local content = table.concat(vim.api.nvim_buf_get_lines(target, 0, -1, false), "\n")
+    local name = vim.api.nvim_buf_get_name(target)
+    local ok, err = add(name ~= "" and name or ("buffer-%d"):format(target), content)
+    buffer_error = not ok and err or nil
+    return ""
+  end)
+  if buffer_error then
+    return nil, buffer_error
   end
 
   local error_message
@@ -108,7 +139,36 @@ function M.expand(text, opts)
   return vim.trim(text) .. table.concat(additions)
 end
 
+function M.complete(text, cursor_col)
+  local before = text:sub(1, cursor_col or #text)
+  local file = before:match("/file%s+([^%s]*)$")
+  if file then
+    return #before - #file + 1, vim.fn.getcompletion(file .. "*", "file")
+  end
+
+  local buffer = before:match("/buffer%s+([^%s]*)$")
+  if buffer then
+    local items = {}
+    for _, info in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+      local name = buffer_name(info.bufnr)
+      if buffer == "" or name:lower():find(buffer:lower(), 1, true) or tostring(info.bufnr):find(buffer, 1, true) then
+        items[#items + 1] = { word = tostring(info.bufnr), abbr = name, menu = ("buffer %d"):format(info.bufnr) }
+      end
+    end
+    return #before - #buffer + 1, items
+  end
+
+  local directive = before:match("(/[%a_]*)$")
+  if directive then
+    local items = vim.tbl_filter(function(item)
+      return item:sub(1, #directive) == directive
+    end, { "/buffer", "/file" })
+    return #before - #directive + 1, items
+  end
+end
+
 M.read_file = read_file
 M.diagnostics = diagnostics
+M.resolve_buffer = resolve_buffer
 
 return M

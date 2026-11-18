@@ -125,10 +125,52 @@ The floating chat contains Chat, Prompt, Models, and History windows. Use `i`, `
 
 Chat prompts support:
 
-- `/buffer` to append the source buffer.
+- `/buffer [number]` to append the source buffer or another listed buffer.
 - `/file path` to append a file within `max_context_bytes`.
 - `@web_search query` to search Tavily when configured.
 - `diagnostics = true` to append source-buffer diagnostics.
+
+The Prompt exposes directives, listed buffers, and file paths through its standard `completefunc`. Luma does not open or replace an external completion menu.
+
+### Completion plugins
+
+With [blink.cmp](https://github.com/Saghen/blink.cmp), add a provider backed by the current buffer's `completefunc`:
+
+```lua
+sources = {
+  default = { "lsp", "path", "snippets", "buffer", "complete_func" },
+  providers = {
+    complete_func = {
+      name = "CompleteFunc",
+      module = "blink.cmp.sources.complete_func",
+      enabled = function()
+        return vim.bo.completefunc ~= ""
+      end,
+      opts = {
+        complete_func = function()
+          return vim.bo.completefunc
+        end,
+      },
+    },
+  },
+}
+```
+
+`nvim-cmp` does not include a source for an existing buffer `completefunc`. Keep native user-defined completion available with `<C-x><C-u>`, or add an explicit mapping if your cmp mappings override that key sequence:
+
+```lua
+local cmp = require("cmp")
+
+cmp.setup({
+  mapping = cmp.mapping.preset.insert({
+    ["<C-x><C-u>"] = cmp.mapping(function()
+      vim.api.nvim_feedkeys(vim.keycode("<C-x><C-u>"), "n", false)
+    end, { "i" }),
+  }),
+})
+```
+
+This opens Neovim's native completion menu for Luma candidates; the rest of `nvim-cmp` continues to use its configured sources.
 
 ## Tools
 

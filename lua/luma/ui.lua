@@ -23,6 +23,23 @@ local sidebar = { models = {}, history = {} }
 local source_window
 local closing_group = false
 local stream_active = false
+local completion_items = {}
+
+function M.complete(findstart, _)
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local start_col, items = require("luma.context").complete(vim.api.nvim_get_current_line(), cursor[2])
+  if findstart == 1 then
+    completion_items = items or {}
+    return start_col and start_col - 1 or -1
+  end
+  return completion_items
+end
+
+local function setup_completion()
+  if M.input and M.input:buf_valid() then
+    vim.bo[M.input.buf].completefunc = "v:lua.require'luma.ui'.complete"
+  end
+end
 
 local function close_group_on_external_close()
   if closing_group then
@@ -320,6 +337,7 @@ local function create_float()
 
   M.output:show()
   M.input:show()
+  setup_completion()
   M.models:show()
   M.history:show()
   M.refresh_sidebars()
@@ -345,6 +363,7 @@ local function create_split()
     enter = true,
   }))
   M.input:show()
+  setup_completion()
 end
 
 function M.open()

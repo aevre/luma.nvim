@@ -125,10 +125,52 @@ require("luma").setup({
 
 聊天输入支持：
 
-- `/buffer`：附加来源 buffer。
+- `/buffer [编号]`：附加来源 buffer 或其他已列出的 buffer。
 - `/file path`：在 `max_context_bytes` 限制内附加文件。
 - `@web_search query`：配置 Tavily 后执行网络搜索。
 - `diagnostics = true`：附加来源 buffer 的 diagnostics。
+
+Prompt 通过标准 `completefunc` 提供指令、已列出的 buffer 和文件路径候选。Luma 不会主动打开或替换外部补全菜单。
+
+### 补全插件
+
+使用 [blink.cmp](https://github.com/Saghen/blink.cmp) 时，添加一个读取当前 buffer `completefunc` 的 provider：
+
+```lua
+sources = {
+  default = { "lsp", "path", "snippets", "buffer", "complete_func" },
+  providers = {
+    complete_func = {
+      name = "CompleteFunc",
+      module = "blink.cmp.sources.complete_func",
+      enabled = function()
+        return vim.bo.completefunc ~= ""
+      end,
+      opts = {
+        complete_func = function()
+          return vim.bo.completefunc
+        end,
+      },
+    },
+  },
+}
+```
+
+`nvim-cmp` 本身没有读取现有 buffer `completefunc` 的 source。可以直接保留原生 `<C-x><C-u>` 补全；如果 cmp 键位覆盖了这个组合，可显式转交给 Neovim 原生补全：
+
+```lua
+local cmp = require("cmp")
+
+cmp.setup({
+  mapping = cmp.mapping.preset.insert({
+    ["<C-x><C-u>"] = cmp.mapping(function()
+      vim.api.nvim_feedkeys(vim.keycode("<C-x><C-u>"), "n", false)
+    end, { "i" }),
+  }),
+})
+```
+
+该键位会为 Luma 候选打开 Neovim 原生补全菜单，其他 `nvim-cmp` source 继续按原配置工作。
 
 ## 工具
 
