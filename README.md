@@ -92,6 +92,7 @@ Supported backends are OpenAI-compatible chat completions and Ollama chat.
 - [Configuration](docs/configuration.md)
 - [Using Luma](docs/usage.md)
 - [Writing Luma Tools](docs/tools.md)
+- [llm.nvim API Keys and Free Providers](docs/llm-api-keys.md)
 - [Complete tool examples](examples/tools.lua)
 
 ## Development

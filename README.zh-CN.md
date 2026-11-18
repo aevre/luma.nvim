@@ -92,6 +92,7 @@ luma.tool(name, has_range?)
 - [配置](docs/configuration.zh-CN.md)
 - [使用 Luma](docs/usage.zh-CN.md)
 - [编写 Luma 工具](docs/tools.zh-CN.md)
+- [llm.nvim API Key 与免费平台](docs/llm-api-keys.zh-CN.md)
 - [完整工具示例](examples/tools.lua)
 
 ## 开发
