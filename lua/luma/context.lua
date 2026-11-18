@@ -7,12 +7,7 @@ local function selection()
   if first[2] == 0 or last[2] == 0 then
     return nil, "no visual selection"
   end
-  local lines = vim.api.nvim_buf_get_lines(bufnr, first[2] - 1, last[2], false)
-  if #lines == 0 then
-    return ""
-  end
-  lines[1] = lines[1]:sub(first[3])
-  lines[#lines] = lines[#lines]:sub(1, last[3])
+  local lines = vim.api.nvim_buf_get_text(bufnr, first[2] - 1, first[3] - 1, last[2] - 1, last[3], {})
   return table.concat(lines, "\n"),
     {
       bufnr = bufnr,
