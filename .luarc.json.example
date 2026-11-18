@@ -9,8 +9,6 @@
     "${workspaceFolder}/lua",
     "/usr/share/nvim/runtime/lua",
     "$VIMRUNTIME",
-    "${workspaceFolder}/../animate.nvim/lua",
-    "${workspaceFolder}/../win.nvim/lua"
   ],
   "telemetry.enable": false,
   "diagnostics.disable": []
