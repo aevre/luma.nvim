@@ -1,18 +1,6 @@
 local Win = require("win")
 
----@class luma.Window
----@field buf integer
----@field win integer
----@field opts table
----@field valid fun(self: luma.Window): boolean
----@field buf_valid fun(self: luma.Window): boolean
----@field show fun(self: luma.Window): luma.Window
----@field hide fun(self: luma.Window): luma.Window
----@field destroy fun(self: luma.Window)
----@field focus fun(self: luma.Window)
----@field text fun(self: luma.Window): string
----@field set_title fun(self: luma.Window, title: string)
----@field toggle_help fun(self: luma.Window, opts?: table)
+---@alias luma.Window win
 
 ---@class luma.UI
 ---@field output? luma.Window
@@ -415,7 +403,7 @@ function M.destroy()
 end
 
 function M.valid()
-  return M.output ~= nil and M.input ~= nil and M.output:valid() and M.input:valid()
+  return M.output ~= nil and M.input ~= nil and M.output:valid() == true and M.input:valid() == true
 end
 
 function M.input_text()

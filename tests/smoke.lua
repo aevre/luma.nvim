@@ -26,12 +26,12 @@ local function test_config()
   assert(again.model == "only" and #again.models == 1)
   local original_notify = vim.notify
   local message
-  vim.notify = function(text, level)
+  rawset(vim, "notify", function(text, level)
     message = { text = text, level = level }
-  end
+  end)
   config.setup({ debug = true, models = { { name = "only", backend = "ollama", model = "tiny" } } })
   require("luma.debug").log("test.event", { messages = 2, input_bytes = 10 })
-  vim.notify = original_notify
+  rawset(vim, "notify", original_notify)
   assert(message and message.level == vim.log.levels.DEBUG)
   assert(message.text == "luma debug: test.event input_bytes=10 messages=2")
   config.setup({ models = { { name = "only", backend = "ollama", model = "tiny" } } })
@@ -68,13 +68,13 @@ end
 local function test_empty_response()
   local original_system = vim.system
   local error_message
-  vim.system = function(_, opts, callback)
+  rawset(vim, "system", function(_, opts, callback)
     opts.stdout(nil, '{"message":{"content":""}}')
     vim.schedule(function()
       callback({ code = 0, stdout = "", stderr = "" })
     end)
     return { kill = function() end }
-  end
+  end)
   require("luma.request").start({ backend = "ollama", model = "test", url = "http://test", stream = false }, {}, {
     on_delta = function() end,
     on_error = function(err)
@@ -87,7 +87,7 @@ local function test_empty_response()
   vim.wait(50, function()
     return error_message ~= nil
   end)
-  vim.system = original_system
+  rawset(vim, "system", original_system)
   assert(error_message == "provider returned an empty response")
 end
 
@@ -250,7 +250,7 @@ local function test_tool_chat()
     return { kill = function() end }
   end)
   vim.api.nvim_buf_set_lines(chat.input.buf, 0, -1, false, { "retry me" })
-  chat.input.opts.actions.submit()
+  chat.input.opts.actions.submit(chat.input)
   vim.wait(50, function()
     return chat.error ~= nil
   end)
@@ -289,13 +289,13 @@ local function test_window_lifecycle()
   assert(vim.fn.maparg("h", "n", false, true).desc == "History")
   assert(vim.fn.maparg("o", "n", false, true).desc == "Chat")
   ui.input:focus()
-  ui.input.opts.actions.models()
+  ui.input.opts.actions.models(ui.input)
   assert(vim.api.nvim_get_current_win() == ui.models.win)
-  ui.models.opts.actions.history()
+  ui.models.opts.actions.history(ui.models)
   assert(vim.api.nvim_get_current_win() == ui.history.win)
-  ui.history.opts.actions.output()
+  ui.history.opts.actions.output(ui.history)
   assert(vim.api.nvim_get_current_win() == ui.output.win)
-  ui.output.opts.actions.input()
+  ui.output.opts.actions.input(ui.output)
   assert(vim.api.nvim_get_current_win() == ui.input.win)
   vim.cmd("stopinsert")
   local output_config = vim.api.nvim_win_get_config(ui.output.win)
@@ -324,13 +324,13 @@ local function test_window_lifecycle()
   assert(help_config.border and help_config.row and help_config.col)
   ui.input.opts.actions.help(ui.input)
   assert(not vim.api.nvim_win_is_valid(help_win))
-  local output_buf = ui.output.buf
-  local input_buf = ui.input.buf
-  local models_buf = ui.models.buf
-  local history_buf = ui.history.buf
+  local output_buf = assert(ui.output.buf)
+  local input_buf = assert(ui.input.buf)
+  local models_buf = assert(ui.models.buf)
+  local history_buf = assert(ui.history.buf)
   ui.history:focus()
   assert(vim.fn.maparg("q", "n", false, true).desc == "Close chat")
-  ui.history.opts.actions.close()
+  ui.history.opts.actions.close(ui.history)
   assert(vim.wo[source_win].cursorline)
   assert(not ui.valid())
   assert(vim.api.nvim_buf_is_valid(output_buf) and vim.api.nvim_buf_is_valid(input_buf))
