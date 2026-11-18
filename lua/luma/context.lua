@@ -7,14 +7,19 @@ local function selection()
   if first[2] == 0 or last[2] == 0 then
     return nil, "no visual selection"
   end
-  local lines = vim.api.nvim_buf_get_text(bufnr, first[2] - 1, first[3] - 1, last[2] - 1, last[3], {})
+  local start_line, end_line = first[2] - 1, last[2] - 1
+  local start_length = #(vim.api.nvim_buf_get_lines(bufnr, start_line, start_line + 1, false)[1] or "")
+  local end_length = #(vim.api.nvim_buf_get_lines(bufnr, end_line, end_line + 1, false)[1] or "")
+  local start_col = math.min(first[3] - 1, start_length)
+  local end_col = math.min(last[3], end_length)
+  local lines = vim.api.nvim_buf_get_text(bufnr, start_line, start_col, end_line, end_col, {})
   return table.concat(lines, "\n"),
     {
       bufnr = bufnr,
       start_line = first[2],
-      start_col = first[3],
+      start_col = start_col + 1,
       end_line = last[2],
-      end_col = last[3],
+      end_col = end_col,
     }
 end
 

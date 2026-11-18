@@ -7,6 +7,21 @@ local function strip_fence(text)
   return fenced or text
 end
 
+local function valid_range(selection)
+  local lines = vim.api.nvim_buf_get_lines(selection.bufnr, 0, -1, false)
+  local start_line = selection.start_line
+  local end_line = selection.end_line
+  if start_line < 1 or end_line < start_line or end_line > #lines then
+    return false
+  end
+  local start_length = #lines[start_line]
+  local end_length = #lines[end_line]
+  return selection.start_col >= 1
+    and selection.start_col - 1 <= start_length
+    and selection.end_col >= 0
+    and selection.end_col <= end_length
+end
+
 function M.show(source, proposed, selection)
   proposed = strip_fence(proposed)
   local closed = false
@@ -40,7 +55,12 @@ function M.show(source, proposed, selection)
       vim.notify("luma: source changed while rewrite was running", vim.log.levels.ERROR)
       return
     end
-    vim.api.nvim_buf_set_text(
+    if not valid_range(selection) then
+      vim.notify("luma: selected range is no longer valid", vim.log.levels.ERROR)
+      return
+    end
+    local ok, err = pcall(
+      vim.api.nvim_buf_set_text,
       selection.bufnr,
       selection.start_line - 1,
       selection.start_col - 1,
@@ -48,6 +68,11 @@ function M.show(source, proposed, selection)
       selection.end_col,
       vim.split(proposed, "\n", { plain = true })
     )
+    if not ok then
+      vim.notify("luma: cannot apply rewrite: " .. tostring(err), vim.log.levels.ERROR)
+      close()
+      return
+    end
     close()
   end
 
