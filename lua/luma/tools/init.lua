@@ -170,23 +170,32 @@ function M.panel(title, keys, opts)
     end
   end
   local mappings = vim.tbl_extend("force", {}, keys, {
-    ["?"] = function(self)
-      self:toggle_help({
-        win = {
-          border = "rounded",
-          title = " Luma keys ",
-          row = 0.2,
-          col = 0.15,
-          width = 0.7,
-        },
-      })
-    end,
-    q = function(self)
-      close_or(keys.q, self)
-    end,
-    ["<Esc>"] = function(self)
-      close_or(keys["<Esc>"], self)
-    end,
+    ["?"] = {
+      function(self)
+        self:toggle_help({
+          win = {
+            border = "rounded",
+            title = " Luma keys ",
+            row = 0.2,
+            col = 0.15,
+            width = 0.7,
+          },
+        })
+      end,
+      desc = "Help",
+    },
+    q = {
+      function(self)
+        close_or(keys.q, self)
+      end,
+      desc = "Close",
+    },
+    ["<Esc>"] = {
+      function(self)
+        close_or(keys["<Esc>"], self)
+      end,
+      desc = "Close",
+    },
   })
   return Win(vim.tbl_deep_extend("force", {
     position = "float",
