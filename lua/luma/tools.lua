@@ -114,6 +114,7 @@ local function spinner(opts)
       col = opts.col or 1,
       width = vim.api.nvim_strwidth(label),
       height = 1,
+      border = opts.border or "rounded",
       style = "minimal",
       focusable = false,
       noautocmd = true,
@@ -123,7 +124,10 @@ local function spinner(opts)
       vim.api.nvim_win_set_config(win, config)
     else
       win = vim.api.nvim_open_win(buf, false, config)
-      vim.wo[win].winhighlight = "Normal:" .. (opts.hl or "LumaLoading")
+      vim.wo[win].winhighlight = "Normal:"
+        .. (opts.hl or "LumaLoading")
+        .. ",FloatBorder:"
+        .. (opts.border_hl or "LumaLoadingBorder")
       vim.wo[win].winblend = opts.blend or 0
     end
     frame = frame % #frames + 1
@@ -209,7 +213,7 @@ function M.panel(title, keys, opts)
     wo = {
       wrap = true,
       linebreak = true,
-      winhighlight = "Normal:LumaNormal,NormalNC:LumaNormalNC,FloatBorder:LumaBorder,FloatTitle:LumaTitle,FloatFooter:LumaFooter,WinSeparator:LumaSeparator",
+      winhighlight = "Normal:LumaNormal,NormalNC:LumaNormalNC,FloatBorder:LumaResultBorder,FloatTitle:LumaTitle,FloatFooter:LumaFooter,WinSeparator:LumaSeparator",
     },
     keys = mappings,
     footer_keys = { "?", "q" },

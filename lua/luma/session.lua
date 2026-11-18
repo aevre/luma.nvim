@@ -215,14 +215,11 @@ function M.attach(text)
   local input = assert(ui.input)
   local current = vim.trim(input:text())
   local attached = ("<selection>\n%s\n</selection>"):format(text)
-  vim.api.nvim_buf_set_lines(
-    input.buf,
-    0,
-    -1,
-    false,
-    vim.split(current ~= "" and (current .. "\n\n" .. attached) or attached, "\n", { plain = true })
-  )
+  local lines = vim.split(current ~= "" and (current .. "\n\n" .. attached) or attached, "\n", { plain = true })
+  lines[#lines + 1] = ""
+  vim.api.nvim_buf_set_lines(input.buf, 0, -1, false, lines)
   require("luma.ui").focus_input()
+  vim.api.nvim_win_set_cursor(input.win, { #lines, 0 })
 end
 
 function M.current_model()
