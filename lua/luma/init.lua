@@ -1,6 +1,27 @@
 local M = {}
 local bootstrapped = false
 
+local highlights = {
+  LumaNormal = "NormalFloat",
+  LumaNormalNC = "NormalFloat",
+  LumaBorder = "FloatBorder",
+  LumaTitle = "FloatTitle",
+  LumaFooter = "FloatFooter",
+  LumaSeparator = "WinSeparator",
+  LumaUser = "Title",
+  LumaAssistant = "Function",
+  LumaError = "DiagnosticError",
+  LumaLoading = "Special",
+  LumaLoadingBorder = "FloatBorder",
+  LumaResultBorder = "FloatTitle",
+}
+
+local function setup_highlights()
+  for name, link in pairs(highlights) do
+    vim.api.nvim_set_hl(0, name, { default = true, link = link })
+  end
+end
+
 local function complete(values)
   return function(arg)
     return vim.tbl_filter(function(value)
@@ -90,6 +111,11 @@ function M._bootstrap()
     return
   end
   bootstrapped = true
+  setup_highlights()
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    group = vim.api.nvim_create_augroup("luma_highlights", { clear = true }),
+    callback = setup_highlights,
+  })
   vim.api.nvim_create_user_command("LumaToggle", M.toggle, {})
   vim.api.nvim_create_user_command("LumaSubmit", function(command)
     M.submit(command.args ~= "" and command.args or nil)

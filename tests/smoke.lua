@@ -6,6 +6,9 @@ vim.opt.runtimepath:prepend(win_dir)
 vim.opt.runtimepath:prepend(animate_dir)
 
 local function test_config()
+  require("luma")._bootstrap()
+  assert(vim.api.nvim_get_hl(0, { name = "LumaLoadingBorder" }).link == "FloatBorder")
+  assert(vim.api.nvim_get_hl(0, { name = "LumaResultBorder" }).link == "FloatTitle")
   package.loaded["luma.config"] = nil
   local config = require("luma.config")
   local value = config.setup({
