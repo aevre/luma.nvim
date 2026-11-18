@@ -1,39 +1,54 @@
 # luma.nvim
 
-A small Neovim 0.10+ LLM client built on [win.nvim](../win.nvim) and [animate.nvim](../animate.nvim). It provides streaming chat, multiple models, saved sessions, buffer/file context, optional Tavily search, and selection rewrite tools without NUI or Plenary.
+A small Neovim 0.10+ LLM client built on [win.nvim](https://github.com/aevre/win.nvim) and [animate.nvim](https://github.com/aevre/animate.nvim). It provides streaming chat, multiple models, saved sessions, context expansion, optional Tavily search, and a user-defined tool API without NUI or Plenary.
+
+[简体中文](README.zh-CN.md)
+
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Tools](#tools)
+- [API](#api)
+- [Development](#development)
 
 ## Requirements
 
-- Neovim 0.10+
-- `curl`
-- `win.nvim`
-- `animate.nvim`
+- Neovim 0.10 or newer.
+- `curl` available in `$PATH`.
+- [win.nvim](https://github.com/aevre/win.nvim).
+- [animate.nvim](https://github.com/aevre/animate.nvim).
 
-## Install
+## Installation
 
-Local `lazy.nvim` setup:
+Available on GitHub: <https://github.com/aevre/luma.nvim>.
+
+With lazy.nvim:
 
 ```lua
 {
-  dir = vim.fn.expand("~/Projects/lib/luma.nvim"),
+  "https://github.com/aevre/luma.nvim",
   dependencies = {
-    { dir = vim.fn.expand("~/Projects/lib/win.nvim") },
-    { dir = vim.fn.expand("~/Projects/lib/animate.nvim") },
+    "https://github.com/aevre/win.nvim",
+    "https://github.com/aevre/animate.nvim",
   },
   opts = {
-    model = "openai",
+    model = "openrouter",
     models = {
-      openai = {
+      openrouter = {
         backend = "openai",
-        model = "gpt-4o-mini",
-        api_key = "OPENAI_API_KEY",
+        model = "openai/gpt-4o-mini",
+        url = "https://openrouter.ai/api/v1/chat/completions",
+        api_key = "OPENROUTER_API_KEY",
       },
     },
   },
 }
 ```
 
-`api_key` may be an environment variable name, a literal key, or a function returning a key. OpenAI-compatible services can override `url`, `headers`, and `model`.
+The guarded `plugin/luma.lua` entrypoint applies defaults. Configure the plugin through your plugin manager or call `require("luma").setup(opts)`.
+
+`api_key` may be an environment variable name, a literal key, or a function returning a key. OpenAI-compatible models may override `url`, `headers`, `timeout`, and `model`.
 
 Ollama needs no API key:
 
@@ -71,6 +86,7 @@ require("luma").setup({
     height = 0.8,
     input_height = 0.18,
     border = "rounded",
+    start_insert = true,
   },
   keys = {
     submit = "<C-s>",
@@ -84,94 +100,151 @@ require("luma").setup({
     url = "https://api.tavily.com/search",
     max_results = 5,
   },
+  tools = require("my_luma_tools"),
 })
 ```
 
-`models` accepts either the keyed form shown above or a list of model tables with explicit `name` fields.
+`models` accepts the keyed form above or a list of model tables with explicit `name` fields. A tool-level `model` overrides the global model; `ctx.generate({ model = "name" })` overrides both for one request.
 
-## Commands
+## Usage
 
 | Command | Action |
 | --- | --- |
 | `:LumaToggle` | Show or hide the chat UI. |
-| `:LumaSubmit [prompt]` | Submit the argument or current input buffer. |
+| `:LumaSubmit [prompt]` | Submit the argument or current Prompt buffer. |
 | `:LumaCancel` | Cancel the active request. |
-| `:LumaNew` | Start a new session. |
-| `:LumaHistory` | Restore a saved session with `vim.ui.select`. |
+| `:LumaNew` | Start a new chat session. |
+| `:LumaHistory` | Restore a saved chat session with `vim.ui.select`. |
 | `:LumaModel [name]` | Select or switch the active model. |
-| `:LumaTool {name}` | Run a registered user tool. Accepts a visual range. |
+| `:LumaTool {name}` | Run a registered user tool; visual ranges are supported. |
 
-The floating chat layout uses a bordered output and prompt column plus a right sidebar with Models and History. Navigation works from every chat window: `i` focuses Prompt, `o` focuses Chat, `m` focuses Models, and `h` focuses History. Press `<CR>` to select a sidebar item, `<Esc>` to return to Prompt, and `?` to toggle key help. Prompt enters Insert mode by default; set `ui.start_insert = false` to keep Normal mode.
+The floating chat contains Chat, Prompt, Models, and History windows. Use `i`, `o`, `m`, and `h` to move between them, `<CR>` to select a sidebar item, `<Esc>` to return to Prompt, `?` for help, and `q` to close the group. Prompt enters Insert mode by default.
 
-In chat prompts:
+Chat prompts support:
 
-- `/buffer` appends the source buffer.
-- `/file path` appends a file, subject to `max_context_bytes`.
-- `@web_search query` searches Tavily when `web_search.api_key` is configured.
-- `diagnostics = true` appends diagnostics from the source buffer.
+- `/buffer` to append the source buffer.
+- `/file path` to append a file within `max_context_bytes`.
+- `@web_search query` to search Tavily when configured.
+- `diagnostics = true` to append source-buffer diagnostics.
 
-## Tool API
+## Tools
 
-Luma registers no tools by default. `:LumaTool` only dispatches tools supplied through `setup()` or `require("luma.tools").register()`.
+Luma registers no concrete tools by default. User configuration supplies declarative tools or handlers through `tools` or `require("luma.tools").register()`.
 
-Add a prompt-based tool in `setup()`:
+A declarative tool can use the current selection, buffer, or an input prompt:
 
 ```lua
-require("luma").setup({
-  tools = {
-    review = {
-      title = " Code review… ",
-      input = "selection", -- selection, buffer, or prompt
-      system = "Review this code for correctness, security, and missing tests.",
-      prompt = "Return findings in severity order.",
-    },
+local tools = {
+  explain = {
+    title = " Explain… ",
+    loading = { text = "Explaining" },
+    system = "Explain the supplied code clearly and answer in Chinese.",
   },
-})
+  tests = {
+    input = "selection",
+    title = " Tests… ",
+    system = "Write useful tests and return only test code.",
+  },
+}
 ```
 
-Run it with `:'<,'>LumaTool review`. Valid `input` values are `selection`, `buffer`, and `prompt`. Without `input`, a visual range is used when provided and the current buffer otherwise. `system` and `prompt` may also be functions receiving `(ctx, input)`; `on_done(result, window)` can customize the completed result window.
-
-For custom UI, external commands, or side effects, register a handler:
+Handlers can collect input, open independent tool sessions, customize result windows, run external commands, or show guarded diffs:
 
 ```lua
-require("luma.tools").register("project_files", function(ctx)
-  local files = vim.fn.systemlist({ "git", "ls-files" })
-  ctx.generate({
-    title = " Project files… ",
-    system = "Summarize the project structure.",
-    user = table.concat(files, "\n"),
-    loading = "Summarizing…",
-  })
-end)
+local tools = {
+  translator = {
+    handler = function(ctx)
+      ctx.chat({
+        title = "Translator",
+        system = "Translate Chinese into English and other text into Chinese. Output only the translation.",
+        history = true,
+      })
+    end,
+  },
+  rewrite = function(ctx)
+    local text, range = ctx.visual()
+    if not text then
+      return
+    end
+    range.changedtick = vim.api.nvim_buf_get_changedtick(range.bufnr)
+    ctx.generate({
+      title = " Rewriting… ",
+      system = "Return only the rewritten replacement text.",
+      user = text,
+      on_done = function(result, output)
+        output:destroy()
+        require("luma.diff").show(text, result, range)
+      end,
+    })
+  end,
+}
 ```
 
-A handler receives `ctx.name`, `ctx.tool`, `ctx.has_range`, `ctx.visual()`, `ctx.source(has_range)`, `ctx.generate(spec)`, `ctx.chat(spec)`, `ctx.loading(opts)`, `ctx.panel(title, keys, opts)`, and `ctx.strip_fence(text)`. The recommended `ctx.generate` fields are `title`, `system`, `user`, `model`, `loading`, `window`, and `on_done(result, output)`. The former positional call remains supported for compatibility. Public registry methods are `register`, `unregister`, `get`, `names`, `run`, and `setup`.
+The complete example in [`examples/tools.lua`](examples/tools.lua) contains the tools used by the author's configuration:
 
-Set `model = "name"` on any declarative tool or handler tool to override the global model for that tool. An explicit `model` passed to `ctx.generate()` takes precedence.
+| Tool | Behavior |
+| --- | --- |
+| `ask` | Prompt for a question and show a one-off answer. |
+| `attach` | Add a visual selection to the current chat as context. |
+| `explain` | Explain the current buffer or selection in Chinese. |
+| `translate` | Open an independent translator with its own model and history. |
+| `word_translate` | Translate the word under the cursor or a visual selection. |
+| `tests` | Generate test code for a visual selection. |
+| `rewrite` | Rewrite a selection and open Luma's guarded diff preview. |
+| `commit` | Generate a commit message from staged changes; `c` commits and `y` copies. |
+| `bash` | Generate a Bash script; `r` executes it and `y` copies it. |
 
-`ctx.generate()` shows a non-focusable floating spinner beside the current cursor while the request runs and returns a cancellable request handle. It does not modify the source buffer. Loading defaults to the icon only. Set `loading = "Generating…"` for an icon plus text, use a table for advanced spinner options, or set `loading = false` to disable it. Other result-window options belong under `window`. After completion Luma removes the spinner, sizes the result window from its content, and calls `on_done(result, output)` with the newly created window.
+The Commit and Bash examples never execute generated content automatically. Execution requires an explicit result-window mapping. The example intentionally has no second confirmation dialog; add one in user configuration if desired.
 
-`ctx.chat()` opens an independent two-window tool session with its own model and history. Each submission sends only the tool's `system` prompt and current input, then clears the prompt; previous results are not included in the next request. The tool group has one footer, on the Prompt window; the Output window only renders the result. Use `i` to enter the Prompt, `m` to select a model, and `h` to inspect that tool's saved history. Set `history = false` to disable saving or `history_max` to override retention. Tool history is stored under `<history.path>/tools/<tool-name>` and never enters the main Luma chat history.
+### Tool context
 
-Calling `require("luma.tools").register(name, spec)` after `require("luma").setup()` is useful for separate extension modules. A later Luma `setup()` resets the registry and reapplies `opts.tools`, so persistent extensions should be declared in `opts.tools` or registered from the plugin's `config` callback after setup.
+Handlers receive:
 
-Recipes for attach, rewrite, translation, test generation, commit messages, Bash generation, and post-commit LazyGit belong in user configuration rather than Luma core. A complete working example is available in `examples/tools.lua`.
+- `ctx.name`, `ctx.tool`, and `ctx.has_range`.
+- `ctx.visual()` and `ctx.source(has_range)` for input collection.
+- `ctx.generate(spec)` for one-off requests and result windows.
+- `ctx.chat(spec)` for an independent two-window tool session.
+- `ctx.loading(opts)`, `ctx.panel(title, keys, opts)`, and `ctx.strip_fence(text)`.
 
-## Scope
+`ctx.generate()` accepts `title`, `system`, `user`, `model`, `loading`, `window`, and `on_done(result, output)`. It displays a non-focusable cursor-adjacent spinner, does not modify the source buffer, returns a cancellable handle, and strips a surrounding Markdown fence from the completed result.
 
-Implemented: OpenAI-compatible and Ollama chat, streaming and non-streaming responses, cancellation, multiple models, persisted history, context expansion, Tavily search, guarded diff support, and the user tool API.
+`ctx.chat()` keeps its model, history, and request context separate from the main chat. Each submission sends only the tool system prompt and current input. The Prompt window owns the single footer; the Output window renders only the result. Use `i` for Prompt, `m` for model selection, and `h` for tool history.
 
-Not implemented: image input, function calling, inline completion, `nvim-cmp`/`blink.cmp` adapters, or provider-specific authentication flows such as Copilot.
+Public registry methods are `register`, `unregister`, `get`, `names`, `run`, and `setup`. A later `require("luma").setup()` resets and reapplies the configured registry, so persistent tools should live under `opts.tools` or be registered after setup.
+
+## API
+
+```lua
+local luma = require("luma")
+
+luma.setup(opts?)
+luma.toggle()
+luma.submit(text?)
+luma.cancel()
+luma.new()
+luma.resend()
+luma.history()
+luma.model(name?)
+luma.tool(name, has_range?)
+```
+
+Supported backends are OpenAI-compatible chat completions and Ollama chat. Luma also provides streaming and non-streaming requests, cancellation, persisted history, context expansion, Tavily search, and guarded selection replacement.
+
+Image input, provider function calling, inline completion, completion-engine adapters, and provider-specific authentication flows are outside the current scope.
 
 ## Development
+
+Run from the repository root:
 
 ```sh
 make check
 make test
 ```
 
-Override dependency paths when needed:
+Override local dependency paths when needed:
 
 ```sh
 make test WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim
 ```
+
+`make check` runs Stylua, Selene, and the headless smoke suite. Keep `setup()` safe when a plugin manager applies user options after the guarded runtime entrypoint.
