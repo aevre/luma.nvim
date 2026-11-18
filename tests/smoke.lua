@@ -81,15 +81,15 @@ local function test_tools_registry()
   local request = require("luma.request")
   local original_start = request.start
   local received
-  request.start = function(model, messages)
+  rawset(request, "start", function(model, messages)
     received = { model = model, messages = messages }
     return { kill = function() end }
-  end
+  end)
   local handle = tools.generate({ system = "system", user = "user", model = "only", loading = false })
   assert(received.model.name == "only")
   assert(received.messages[1].content == "system" and received.messages[2].content == "user")
   handle.kill()
-  request.start = original_start
+  rawset(request, "start", original_start)
   local called
   tools.setup({
     custom = function(ctx)
