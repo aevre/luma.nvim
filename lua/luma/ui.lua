@@ -24,6 +24,20 @@ local source_window
 local closing_group = false
 local stream_active = false
 local completion_items = {}
+local highlight_namespace = vim.api.nvim_create_namespace("luma")
+local heading_highlights = {
+  ["##  You"] = "LumaUser",
+  ["## 󰚩 Assistant"] = "LumaAssistant",
+  ["##  Error"] = "LumaError",
+}
+local window_highlight = table.concat({
+  "Normal:LumaNormal",
+  "NormalNC:LumaNormalNC",
+  "FloatBorder:LumaBorder",
+  "FloatTitle:LumaTitle",
+  "FloatFooter:LumaFooter",
+  "WinSeparator:LumaSeparator",
+}, ",")
 
 function M.complete(findstart, _)
   local cursor = vim.api.nvim_win_get_cursor(0)
@@ -182,6 +196,7 @@ local function common(title, input)
       signcolumn = "no",
       wrap = true,
       linebreak = true,
+      winhighlight = window_highlight,
     },
     keys = keys(input),
     actions = actions(),
@@ -201,6 +216,22 @@ local function set_lines(win, lines)
   vim.bo[win.buf].modifiable = true
   vim.api.nvim_buf_set_lines(win.buf, 0, -1, false, lines)
   vim.bo[win.buf].modifiable = false
+end
+
+local function highlight_headings()
+  if not M.output or not M.output:buf_valid() then
+    return
+  end
+  vim.api.nvim_buf_clear_namespace(M.output.buf, highlight_namespace, 0, -1)
+  for line, text in ipairs(vim.api.nvim_buf_get_lines(M.output.buf, 0, -1, false)) do
+    local group = heading_highlights[text]
+    if group then
+      vim.api.nvim_buf_set_extmark(M.output.buf, highlight_namespace, line - 1, 0, {
+        end_col = #text,
+        hl_group = group,
+      })
+    end
+  end
 end
 
 local function history_label(item)
@@ -263,7 +294,14 @@ local function sidebar_window(title, row, col, width, height, select)
     title_pos = "center",
     ft = "markdown",
     bo = { buftype = "nofile", bufhidden = "hide", swapfile = false, modifiable = false },
-    wo = { cursorline = true, wrap = false, number = false, relativenumber = false, signcolumn = "no" },
+    wo = {
+      cursorline = true,
+      wrap = false,
+      number = false,
+      relativenumber = false,
+      signcolumn = "no",
+      winhighlight = window_highlight,
+    },
     keys = vim.tbl_extend("force", keys(false), {
       ["<CR>"] = { select, desc = "Select" },
       ["<Esc>"] = {
@@ -450,6 +488,7 @@ function M.render(lines, title, streaming)
     follow = vim.api.nvim_win_get_cursor(M.output.win)[1] >= count
   end
   set_lines(M.output, lines)
+  highlight_headings()
   stream_active = streaming or false
   M.output:set_title(title or " Luma ")
   if follow then

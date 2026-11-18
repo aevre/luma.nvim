@@ -123,7 +123,7 @@ local function spinner(opts)
       vim.api.nvim_win_set_config(win, config)
     else
       win = vim.api.nvim_open_win(buf, false, config)
-      vim.wo[win].winhighlight = "Normal:" .. (opts.hl or "Title")
+      vim.wo[win].winhighlight = "Normal:" .. (opts.hl or "LumaLoading")
       vim.wo[win].winblend = opts.blend or 0
     end
     frame = frame % #frames + 1
@@ -206,7 +206,11 @@ function M.panel(title, keys, opts)
     text = {},
     ft = "markdown",
     bo = { modifiable = false, buftype = "nofile", bufhidden = "wipe" },
-    wo = { wrap = true, linebreak = true },
+    wo = {
+      wrap = true,
+      linebreak = true,
+      winhighlight = "Normal:LumaNormal,NormalNC:LumaNormalNC,FloatBorder:LumaBorder,FloatTitle:LumaTitle,FloatFooter:LumaFooter,WinSeparator:LumaSeparator",
+    },
     keys = mappings,
     footer_keys = { "?", "q" },
   }, opts or {}))

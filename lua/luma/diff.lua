@@ -84,7 +84,11 @@ function M.show(source, proposed, selection)
     border = "rounded",
     ft = vim.bo[selection.bufnr].filetype,
     bo = { modifiable = false, buftype = "nofile", bufhidden = "wipe" },
-    wo = { number = true, wrap = false },
+    wo = {
+      number = true,
+      wrap = false,
+      winhighlight = "Normal:LumaNormal,NormalNC:LumaNormalNC,FloatBorder:LumaBorder,FloatTitle:LumaTitle,FloatFooter:LumaFooter,WinSeparator:LumaSeparator",
+    },
     keys = keys,
     footer_keys = { "y", "n" },
   }

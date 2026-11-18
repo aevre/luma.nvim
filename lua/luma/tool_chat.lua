@@ -215,7 +215,11 @@ local function create(name, spec)
     title = " " .. (spec.title or name) .. " ",
     ft = "markdown",
     bo = { buftype = "nofile", bufhidden = "wipe", modifiable = false },
-    wo = { wrap = true, linebreak = true },
+    wo = {
+      wrap = true,
+      linebreak = true,
+      winhighlight = "Normal:LumaNormal,NormalNC:LumaNormalNC,FloatBorder:LumaBorder,FloatTitle:LumaTitle,FloatFooter:LumaFooter,WinSeparator:LumaSeparator",
+    },
     keys = output_keys,
     actions = actions,
     on_close = function()
@@ -242,7 +246,11 @@ local function create(name, spec)
     title = " Prompt ",
     ft = "markdown",
     bo = { buftype = "nofile", bufhidden = "wipe", modifiable = true },
-    wo = { wrap = true, linebreak = true },
+    wo = {
+      wrap = true,
+      linebreak = true,
+      winhighlight = "Normal:LumaNormal,NormalNC:LumaNormalNC,FloatBorder:LumaBorder,FloatTitle:LumaTitle,FloatFooter:LumaFooter,WinSeparator:LumaSeparator",
+    },
     keys = input_keys,
     actions = actions,
     footer_keys = { "?", "q", "m", "h" },
