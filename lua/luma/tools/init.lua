@@ -46,7 +46,7 @@ local function spinner(opts)
   local active = true
   local buf = vim.api.nvim_create_buf(false, true)
   local win
-  local timer = vim.uv.new_timer()
+  local timer = assert(vim.uv.new_timer())
   vim.bo[buf].bufhidden = "wipe"
   local function draw()
     if not active then
