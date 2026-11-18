@@ -136,17 +136,22 @@ For custom UI, external commands, or side effects, register a handler:
 ```lua
 require("luma.tools").register("project_files", function(ctx)
   local files = vim.fn.systemlist({ "git", "ls-files" })
-  ctx.generate(
-    " Project files… ",
-    "Summarize the project structure.",
-    table.concat(files, "\n")
-  )
+  ctx.generate({
+    title = " Project files… ",
+    system = "Summarize the project structure.",
+    user = table.concat(files, "\n"),
+    loading = "Summarizing…",
+  })
 end)
 ```
 
-A handler receives `ctx.name`, `ctx.tool`, `ctx.has_range`, `ctx.visual()`, `ctx.source(has_range)`, `ctx.generate(title, system, user, on_done, window_opts)`, `ctx.panel(title, keys, opts)`, and `ctx.strip_fence(text)`. Public registry methods are `register`, `unregister`, `get`, `names`, `run`, and `setup`.
+A handler receives `ctx.name`, `ctx.tool`, `ctx.has_range`, `ctx.visual()`, `ctx.source(has_range)`, `ctx.generate(spec)`, `ctx.chat(spec)`, `ctx.loading(opts)`, `ctx.panel(title, keys, opts)`, and `ctx.strip_fence(text)`. The recommended `ctx.generate` fields are `title`, `system`, `user`, `model`, `loading`, `window`, and `on_done(result, output)`. The former positional call remains supported for compatibility. Public registry methods are `register`, `unregister`, `get`, `names`, `run`, and `setup`.
 
-`ctx.generate()` shows an animated extmark at the current cursor while the request runs and returns a cancellable request handle. It does not create an empty result window. After completion it removes the spinner, sizes the result window from its content, and calls `on_done(result, output)` with the newly created window.
+Set `model = "name"` on any declarative tool or handler tool to override the global model for that tool. An explicit `model` passed to `ctx.generate()` takes precedence.
+
+`ctx.generate()` shows a non-focusable floating spinner beside the current cursor while the request runs and returns a cancellable request handle. It does not modify the source buffer. Loading defaults to the icon only. Set `loading = "Generating…"` for an icon plus text, use a table for advanced spinner options, or set `loading = false` to disable it. Other result-window options belong under `window`. After completion Luma removes the spinner, sizes the result window from its content, and calls `on_done(result, output)` with the newly created window.
+
+`ctx.chat()` opens an independent two-window tool session with its own model and history. Each submission sends only the tool's `system` prompt and current input, then clears the prompt; previous results are not included in the next request. The tool group has one footer, on the Prompt window; the Output window only renders the result. Use `i` to enter the Prompt, `m` to select a model, and `h` to inspect that tool's saved history. Set `history = false` to disable saving or `history_max` to override retention. Tool history is stored under `<history.path>/tools/<tool-name>` and never enters the main Luma chat history.
 
 Calling `require("luma.tools").register(name, spec)` after `require("luma").setup()` is useful for separate extension modules. A later Luma `setup()` resets the registry and reapplies `opts.tools`, so persistent extensions should be declared in `opts.tools` or registered from the plugin's `config` callback after setup.
 

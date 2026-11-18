@@ -388,9 +388,14 @@ function M.input_text()
   return M.input and M.input:text() or ""
 end
 
+function M.set_input(text)
+  M.open()
+  vim.api.nvim_buf_set_lines(M.input.buf, 0, -1, false, vim.split(text or "", "\n", { plain = true }))
+end
+
 function M.clear_input()
   if M.input and M.input:buf_valid() then
-    vim.api.nvim_buf_set_lines(M.input.buf, 0, -1, false, { "" })
+    M.set_input("")
   end
 end
 

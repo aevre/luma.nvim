@@ -76,6 +76,20 @@ end
 
 local function test_tools_registry()
   local tools = require("luma.tools")
+  local ok, err = pcall(tools.generate, { title = "invalid" })
+  assert(not ok and err:match("requires string system and user fields"))
+  local request = require("luma.request")
+  local original_start = request.start
+  local received
+  request.start = function(model, messages)
+    received = { model = model, messages = messages }
+    return { kill = function() end }
+  end
+  local handle = tools.generate({ system = "system", user = "user", model = "only", loading = false })
+  assert(received.model.name == "only")
+  assert(received.messages[1].content == "system" and received.messages[2].content == "user")
+  handle.kill()
+  request.start = original_start
   local called
   tools.setup({
     custom = function(ctx)
@@ -100,11 +114,79 @@ local function test_tools_registry()
   assert(small.width == 36 and small.height == 6)
   assert(large.width <= math.floor(vim.o.columns * 0.8))
   assert(large.height <= math.floor(vim.o.lines * 0.8))
-  local before = #vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, {})
-  local clear = tools._spinner()
-  assert(#vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, {}) == before + 1)
+  local original = vim.api.nvim_get_current_buf()
+  local scratch = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_current_buf(scratch)
+  vim.api.nvim_buf_set_lines(scratch, 0, -1, false, { "one", "two", "three" })
+  local source_text = table.concat(vim.api.nvim_buf_get_lines(scratch, 0, -1, false), "\n")
+  local clear = tools._spinner({ text = false, interval = 10 })
+  local spinner_win
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local config = vim.api.nvim_win_get_config(win)
+    if config.focusable == false and vim.api.nvim_win_get_buf(win) ~= scratch then
+      spinner_win = win
+      break
+    end
+  end
+  assert(spinner_win and vim.api.nvim_win_is_valid(spinner_win))
+  assert(vim.api.nvim_win_get_config(spinner_win).focusable == false)
+  assert(vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(spinner_win), 0, -1, false)[1] == "⠋")
+  vim.api.nvim_win_set_cursor(0, { 3, 0 })
+  vim.wait(30)
+  assert(vim.api.nvim_win_get_config(spinner_win).relative ~= "")
+  assert(table.concat(vim.api.nvim_buf_get_lines(scratch, 0, -1, false), "\n") == source_text)
   clear()
-  assert(#vim.api.nvim_buf_get_extmarks(0, -1, 0, -1, {}) == before)
+  assert(not vim.api.nvim_win_is_valid(spinner_win))
+  local clear_text = tools._spinner({ text = "Generating", interval = 10 })
+  spinner_win = nil
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local config = vim.api.nvim_win_get_config(win)
+    if config.focusable == false and vim.api.nvim_win_get_buf(win) ~= scratch then
+      spinner_win = win
+    end
+  end
+  assert(spinner_win)
+  assert(vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(spinner_win), 0, -1, false)[1]:match("Generating$"))
+  clear_text()
+  vim.api.nvim_set_current_buf(original)
+  vim.api.nvim_buf_delete(scratch, { force = true })
+end
+
+local function test_tool_chat()
+  local tool_chat = require("luma.tool_chat")
+  local spec = { title = "Translator", system = "Translate", model = "local_ollama", history_max = 3 }
+  local chat = tool_chat.open("translate", spec)
+  assert(chat.model == "local_ollama")
+  assert(chat.input:valid() and chat.output:valid())
+  assert(chat.output.opts.footer == nil)
+  local help_count = 0
+  for _, item in ipairs(chat.input.opts.footer or {}) do
+    if item[1] == " Help " then
+      help_count = help_count + 1
+    end
+  end
+  assert(help_count == 1)
+  local insert_mapping
+  for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(chat.input.buf, "n")) do
+    if mapping.lhs == "i" then
+      insert_mapping = mapping
+    end
+  end
+  assert(insert_mapping and insert_mapping.desc == "Insert")
+  local output_lines = vim.api.nvim_buf_get_lines(chat.output.buf, 0, -1, false)
+  assert(#output_lines == 1 and output_lines[1] == " ")
+  local output_config = vim.api.nvim_win_get_config(chat.output.win)
+  local input_config = vim.api.nvim_win_get_config(chat.input.win)
+  local group_left = output_config.col
+  local group_right = output_config.col + output_config.width + 2
+  local group_top = output_config.row
+  local group_bottom = input_config.row + input_config.height + 2
+  assert(math.abs((group_left + group_right) / 2 - vim.o.columns / 2) <= 0.5)
+  assert(math.abs((group_top + group_bottom) / 2 - vim.o.lines / 2) <= 0.5)
+  local history = tool_chat._history_config(chat)
+  assert(history.path:match("/tools/translate$") and history.max == 3)
+  tool_chat.close("translate")
+  assert(tool_chat._chats.translate == nil)
 end
 
 local function test_window_lifecycle()
@@ -190,6 +272,10 @@ local function test_window_lifecycle()
   assert(vim.wo[source_win].cursorline)
   ui.open()
   assert(ui.valid())
+  ui.set_input("translate this")
+  assert(ui.input_text() == "translate this")
+  ui.clear_input()
+  assert(ui.input_text() == "")
   ui.render({ "## You", "", "hello", "", "## Assistant", "", "" }, " Test… ", true)
   ui.render_stream("one", " Test… ")
   ui.render_stream("\ntwo", " Test… ")
@@ -219,6 +305,7 @@ local function test()
   test_ollama_parser()
   test_history()
   test_tools_registry()
+  test_tool_chat()
   test_window_lifecycle()
 end
 

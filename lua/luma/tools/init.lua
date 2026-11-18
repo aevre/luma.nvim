@@ -2,7 +2,6 @@ local Win = require("win")
 
 local M = {}
 local registry = {}
-local spinner_ns = vim.api.nvim_create_namespace("luma.tool_spinner")
 
 local function close_help()
   for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
@@ -36,32 +35,50 @@ function M.source(has_range)
   return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"), { bufnr = bufnr }
 end
 
-local function spinner()
-  local bufnr = vim.api.nvim_get_current_buf()
-  local winid = vim.api.nvim_get_current_win()
-  local cursor = vim.api.nvim_win_get_cursor(winid)
-  local frames = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+local function spinner(opts)
+  if opts == false then
+    return function() end
+  end
+  opts = type(opts) == "table" and opts or {}
+  local frames = opts.frames or { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+  local text = opts.text
   local frame = 1
   local active = true
-  local mark
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win
   local timer = vim.uv.new_timer()
+  vim.bo[buf].bufhidden = "wipe"
   local function draw()
-    if not active or not vim.api.nvim_buf_is_valid(bufnr) then
+    if not active then
       return
     end
-    local line_count = vim.api.nvim_buf_line_count(bufnr)
-    local row = math.min(math.max(cursor[1] - 1, 0), line_count - 1)
-    local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
-    local col = math.min(math.max(cursor[2], 0), #line)
-    mark = vim.api.nvim_buf_set_extmark(bufnr, spinner_ns, row, col, {
-      id = mark,
-      virt_text = { { " " .. frames[frame] .. " Luma", "Title" } },
-      virt_text_pos = "eol",
-    })
+    local label = frames[frame]
+    if text ~= false and text ~= nil and text ~= "" then
+      label = label .. " " .. text
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { label })
+    local config = {
+      relative = "cursor",
+      row = opts.row or 1,
+      col = opts.col or 1,
+      width = vim.api.nvim_strwidth(label),
+      height = 1,
+      style = "minimal",
+      focusable = false,
+      noautocmd = true,
+      zindex = opts.zindex or 60,
+    }
+    if win and vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_set_config(win, config)
+    else
+      win = vim.api.nvim_open_win(buf, false, config)
+      vim.wo[win].winhighlight = "Normal:" .. (opts.hl or "Title")
+      vim.wo[win].winblend = opts.blend or 0
+    end
     frame = frame % #frames + 1
   end
   draw()
-  timer:start(80, 80, vim.schedule_wrap(draw))
+  timer:start(opts.interval or 80, opts.interval or 80, vim.schedule_wrap(draw))
   return function()
     if not active then
       return
@@ -69,8 +86,10 @@ local function spinner()
     active = false
     timer:stop()
     timer:close()
-    if vim.api.nvim_buf_is_valid(bufnr) and mark then
-      pcall(vim.api.nvim_buf_del_extmark, bufnr, spinner_ns, mark)
+    if win and vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    elseif vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_delete(buf, { force = true })
     end
   end
 end
@@ -134,11 +153,37 @@ function M.panel(title, keys, opts)
 end
 
 function M.generate(title, system, user, on_done, opts)
+  local spec
+  if type(title) == "table" then
+    spec = title
+  else
+    opts = opts or {}
+    local window = vim.deepcopy(opts)
+    window.loading = nil
+    spec = {
+      title = title,
+      system = system,
+      user = user,
+      on_done = on_done,
+      loading = opts.loading,
+      window = window,
+    }
+  end
+  if type(spec.system) ~= "string" or type(spec.user) ~= "string" then
+    error("luma: generate requires string system and user fields")
+  end
+  local loading = type(spec.loading) == "string" and { text = spec.loading } or spec.loading
   local result = ""
-  local clear_spinner = spinner()
-  local request = require("luma.request").start(require("luma.models").get(require("luma.config").get().model), {
-    { role = "system", content = system },
-    { role = "user", content = user },
+  local clear_spinner = spinner(loading)
+  local model_name = spec.model or require("luma.config").get().model
+  local model = require("luma.models").get(model_name)
+  if not model then
+    clear_spinner()
+    error("luma: unknown model " .. tostring(model_name))
+  end
+  local request = require("luma.request").start(model, {
+    { role = "system", content = spec.system },
+    { role = "user", content = spec.user },
   }, {
     on_delta = function(text)
       result = result .. text
@@ -152,17 +197,17 @@ function M.generate(title, system, user, on_done, opts)
       result = M.strip_fence(result)
       local dimensions = result_size(result)
       local output
-      output = M.panel(title:gsub("…", ""), {
+      output = M.panel((spec.title or " Luma… "):gsub("…", ""), {
         q = function(self)
           self:destroy()
         end,
         ["<Esc>"] = "close",
-      }, vim.tbl_deep_extend("force", dimensions, opts or {}))
+      }, vim.tbl_deep_extend("force", dimensions, spec.window or {}))
       vim.bo[output.buf].modifiable = true
       vim.api.nvim_buf_set_lines(output.buf, 0, -1, false, vim.split(result, "\n", { plain = true }))
       vim.bo[output.buf].modifiable = false
-      if on_done then
-        on_done(result, output)
+      if spec.on_done then
+        spec.on_done(result, output)
       end
     end,
   })
@@ -194,13 +239,15 @@ local function declarative(spec, ctx)
   local system = type(spec.system) == "function" and spec.system(ctx, input) or spec.system
   local prompt = type(spec.prompt) == "function" and spec.prompt(ctx, input) or spec.prompt
   local user = prompt and (prompt .. "\n\n" .. input) or input
-  return M.generate(
-    spec.title or (" " .. ctx.name .. "… "),
-    system or "Follow the user's request.",
-    user,
-    spec.on_done,
-    spec.window
-  )
+  return M.generate({
+    title = spec.title or (" " .. ctx.name .. "… "),
+    system = system or "Follow the user's request.",
+    user = user,
+    on_done = spec.on_done,
+    loading = spec.loading,
+    window = spec.window,
+    model = spec.model,
+  })
 end
 
 function M.register(name, spec)
@@ -240,6 +287,7 @@ function M.setup(tools)
   end
 end
 
+M.loading = spinner
 M._result_size = result_size
 M._spinner = spinner
 
@@ -255,7 +303,16 @@ function M.run(name, has_range)
     has_range = has_range == true,
     visual = M.visual,
     source = M.source,
-    generate = M.generate,
+    generate = function(generate_spec, ...)
+      if type(generate_spec) == "table" and generate_spec.model == nil then
+        generate_spec = vim.tbl_extend("force", { model = spec.model }, generate_spec)
+      end
+      return M.generate(generate_spec, ...)
+    end,
+    chat = function(chat_spec)
+      return require("luma.tool_chat").open(name, vim.tbl_extend("force", { model = spec.model }, chat_spec or {}))
+    end,
+    loading = M.loading,
     panel = M.panel,
     strip_fence = M.strip_fence,
   }

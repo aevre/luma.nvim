@@ -23,15 +23,15 @@ local function rewrite(ctx)
     return
   end
   range.changedtick = vim.api.nvim_buf_get_changedtick(range.bufnr)
-  ctx.generate(
-    " Rewriting… ",
-    "Rewrite the supplied text. Return only the replacement text without Markdown fences or explanation.",
-    instruction .. "\n\n<selection>\n" .. text .. "\n</selection>",
-    function(result, output)
+  ctx.generate({
+    title = " Rewriting… ",
+    system = "Rewrite the supplied text. Return only the replacement text without Markdown fences or explanation.",
+    user = instruction .. "\n\n<selection>\n" .. text .. "\n</selection>",
+    on_done = function(result, output)
       output:destroy()
       require("luma.diff").show(text, result, range)
-    end
-  )
+    end,
+  })
 end
 
 local function commit(ctx)
@@ -45,11 +45,11 @@ local function commit(ctx)
         vim.notify("luma: no staged changes", vim.log.levels.WARN)
         return
       end
-      ctx.generate(
-        " Commit message… ",
-        "Generate a Conventional Commit message from the staged diff. Use `type: concise description`, add concise bullets only when needed, keep every line at most 72 characters, base it strictly on the diff, and output only the commit message.",
-        diff_result.stdout,
-        function(message, output)
+      ctx.generate({
+        title = " Commit message… ",
+        system = "Generate a Conventional Commit message from the staged diff. Use `type: concise description`, add concise bullets only when needed, keep every line at most 72 characters, base it strictly on the diff, and output only the commit message.",
+        user = diff_result.stdout,
+        on_done = function(message, output)
           output:set_title(" Commit message · c commit · y copy ")
           output.opts.actions = output.opts.actions or {}
           output.opts.actions.commit = function()
@@ -77,8 +77,8 @@ local function commit(ctx)
           end
           vim.keymap.set("n", "c", output:action("commit"), { buffer = output.buf, desc = "Commit staged changes" })
           vim.keymap.set("n", "y", output:action("copy"), { buffer = output.buf, desc = "Copy commit message" })
-        end
-      )
+        end,
+      })
     end)
   end)
 end
@@ -88,11 +88,11 @@ local function bash(ctx)
   if not request or request == "" then
     return
   end
-  ctx.generate(
-    " Bash script… ",
-    "Write a Bash script for the requested task. Return only the script without Markdown fences. Do not execute it.",
-    request,
-    function(script, output)
+  ctx.generate({
+    title = " Bash script… ",
+    system = "Write a Bash script for the requested task. Return only the script without Markdown fences. Do not execute it.",
+    user = request,
+    on_done = function(script, output)
       output:set_title(" Bash script · r run · y copy ")
       output.opts.actions = output.opts.actions or {}
       output.opts.actions.run = function()
@@ -120,8 +120,8 @@ local function bash(ctx)
       end
       vim.keymap.set("n", "r", output:action("run"), { buffer = output.buf, desc = "Run generated script" })
       vim.keymap.set("n", "y", output:action("copy"), { buffer = output.buf, desc = "Copy generated script" })
-    end
-  )
+    end,
+  })
 end
 
 return {
