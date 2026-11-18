@@ -55,10 +55,11 @@ function M.history()
     return
   end
   vim.ui.select(history, {
-    prompt = "Luma history",
+    prompt = "Luma history: ",
     format_item = function(item)
       local first = item.messages and item.messages[2] and item.messages[2].content or item.id
-      return ("%s · %s"):format(item.model or "?", vim.trim(first):sub(1, 60))
+      first = vim.trim((first or item.id):gsub("%s+", " "))
+      return ("%s · %s"):format(item.model or "?", first:sub(1, 60))
     end,
   }, function(item)
     if item then
@@ -73,7 +74,7 @@ function M.model(name)
     require("luma.session").set_model(name)
     return
   end
-  vim.ui.select(require("luma.models").names(), { prompt = "Luma model" }, function(selected)
+  vim.ui.select(require("luma.models").names(), { prompt = "Luma model: " }, function(selected)
     if selected then
       require("luma.session").set_model(selected)
     end

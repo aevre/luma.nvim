@@ -56,7 +56,8 @@ local function select_history(chat)
     prompt = (chat.spec.title or chat.name) .. " history: ",
     format_item = function(item)
       local message = item.messages and item.messages[1]
-      return ("%s · %s"):format(item.model or "?", vim.trim(message and message.content or item.id):sub(1, 60))
+      local text = vim.trim(((message and message.content) or item.id):gsub("%s+", " "))
+      return ("%s · %s"):format(item.model or "?", text:sub(1, 60))
     end,
   }, function(item)
     if item then
