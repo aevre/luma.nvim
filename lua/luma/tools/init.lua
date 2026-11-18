@@ -190,6 +190,9 @@ function M.generate(title, system, user, on_done, opts)
     end,
     on_error = function(err)
       clear_spinner()
+      if spec.on_error then
+        spec.on_error(err)
+      end
       vim.notify("luma: " .. err, vim.log.levels.ERROR)
     end,
     on_done = function()
@@ -244,6 +247,7 @@ local function declarative(spec, ctx)
     system = system or "Follow the user's request.",
     user = user,
     on_done = spec.on_done,
+    on_error = spec.on_error,
     loading = spec.loading,
     window = spec.window,
     model = spec.model,

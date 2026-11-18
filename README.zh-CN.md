@@ -75,6 +75,7 @@ require("luma").setup({
   max_tokens = nil,
   temperature = nil,
   diagnostics = false,
+  debug = false,
   max_context_bytes = 200000,
   history = {
     path = vim.fn.stdpath("state") .. "/luma-history",
@@ -105,6 +106,8 @@ require("luma").setup({
 ```
 
 `models` 支持上面的键值表形式，也支持带显式 `name` 字段的模型列表。工具顶层的 `model` 会覆盖全局模型；单次 `ctx.generate({ model = "name" })` 会再次覆盖工具模型。
+
+设置 `debug = true` 后，LLM 和 Tavily 请求会通过 `vim.log.levels.DEBUG` 输出生命周期日志。日志包含请求编号、backend/model、是否流式、消息和字节数量、耗时、完成、取消及错误信息，不会包含 API key、headers、完整 prompt 或生成内容。可通过 `:messages` 或当前通知插件的历史记录查看。
 
 ## 使用
 

@@ -7,6 +7,7 @@ local M = {
   token = 0,
   source_buf = nil,
   pending = "",
+  error = nil,
 }
 
 local function cfg()
@@ -33,6 +34,10 @@ local function render()
     lines[#lines + 1] = "## Assistant"
     lines[#lines + 1] = ""
     vim.list_extend(lines, vim.split(M.pending, "\n", { plain = true }))
+  elseif M.error then
+    lines[#lines + 1] = "## Error"
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = M.error
   end
   if #lines == 0 then
     lines = { "# Luma", "", "Type a prompt below. Use /buffer or /file path to add context." }
@@ -55,6 +60,7 @@ function M.new()
   M.messages = base_messages()
   M.status = "idle"
   M.pending = ""
+  M.error = nil
   M.source_buf = vim.api.nvim_get_current_buf()
   require("luma.ui").clear_input()
   render()
@@ -68,6 +74,7 @@ function M.restore(saved)
   M.messages = vim.deepcopy(saved.messages or base_messages())
   M.status = "idle"
   M.pending = ""
+  M.error = nil
   render()
   require("luma.ui").refresh_sidebars()
 end
@@ -102,6 +109,7 @@ local function start_request()
   local token = M.token
   M.status = "requesting"
   M.pending = ""
+  M.error = nil
   render()
   local model = require("luma.models").get(M.model)
   M.request = require("luma.request").start(model, vim.deepcopy(M.messages), {
@@ -119,6 +127,7 @@ local function start_request()
       M.request = nil
       M.status = "idle"
       M.pending = ""
+      M.error = err
       render()
       vim.notify("luma: " .. err, vim.log.levels.ERROR)
     end,
@@ -130,6 +139,7 @@ local function start_request()
       M.status = "idle"
       M.messages[#M.messages + 1] = { role = "assistant", content = M.pending }
       M.pending = ""
+      M.error = nil
       M.save()
       render()
       require("luma.ui").refresh_sidebars()

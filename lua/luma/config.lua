@@ -8,6 +8,7 @@ local defaults = {
   max_tokens = nil,
   temperature = nil,
   diagnostics = false,
+  debug = false,
   max_context_bytes = 200000,
   history = {
     path = vim.fn.stdpath("state") .. "/luma-history",

@@ -75,6 +75,7 @@ require("luma").setup({
   max_tokens = nil,
   temperature = nil,
   diagnostics = false,
+  debug = false,
   max_context_bytes = 200000,
   history = {
     path = vim.fn.stdpath("state") .. "/luma-history",
@@ -105,6 +106,8 @@ require("luma").setup({
 ```
 
 `models` accepts the keyed form above or a list of model tables with explicit `name` fields. A tool-level `model` overrides the global model; `ctx.generate({ model = "name" })` overrides both for one request.
+
+Set `debug = true` to emit `vim.log.levels.DEBUG` lifecycle messages for LLM and Tavily requests. Logs include request IDs, backend/model, streaming mode, message and byte counts, elapsed time, completion, cancellation, and errors. They never include API keys, headers, complete prompts, or generated content. View them through `:messages` or your configured notification history.
 
 ## Usage
 

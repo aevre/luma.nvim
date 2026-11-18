@@ -12,7 +12,8 @@ local function history_config(chat)
 end
 
 local function render(chat, _, assistant)
-  local lines = vim.split(assistant and assistant ~= "" and assistant or " ", "\n", { plain = true })
+  local content = chat.error and ("Error: " .. chat.error) or assistant
+  local lines = vim.split(content and content ~= "" and content or " ", "\n", { plain = true })
   vim.bo[chat.output.buf].modifiable = true
   vim.api.nvim_buf_set_lines(chat.output.buf, 0, -1, false, lines)
   vim.bo[chat.output.buf].modifiable = false
@@ -105,6 +106,7 @@ local function submit(chat)
 
   chat.user = user
   chat.assistant = ""
+  chat.error = nil
   vim.api.nvim_buf_set_lines(chat.input.buf, 0, -1, false, { "" })
   render(chat, user, "")
   chat.token = chat.token + 1
@@ -125,6 +127,11 @@ local function submit(chat)
         return
       end
       chat.request = nil
+      chat.error = err
+      if chat.input:buf_valid() then
+        vim.api.nvim_buf_set_lines(chat.input.buf, 0, -1, false, vim.split(chat.user, "\n", { plain = true }))
+      end
+      render(chat, chat.user, chat.assistant)
       vim.notify("luma: " .. err, vim.log.levels.ERROR)
     end,
     on_done = function()
@@ -132,6 +139,7 @@ local function submit(chat)
         return
       end
       chat.request = nil
+      chat.error = nil
       save(chat, chat.user, chat.assistant)
     end,
   })

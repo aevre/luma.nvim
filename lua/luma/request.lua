@@ -1,6 +1,15 @@
 local backend = require("luma.backend")
 
 local M = {}
+local next_id = 0
+
+local function message_bytes(messages)
+  local bytes = 0
+  for _, message in ipairs(messages) do
+    bytes = bytes + #(message.content or "")
+  end
+  return bytes
+end
 
 local function api_key(value)
   if type(value) == "function" then
@@ -26,14 +35,30 @@ function M.start(model, messages, opts)
   local cfg = require("luma.config").get()
   local body = backend.body(model, messages, cfg)
   local stream = body.stream
+  next_id = next_id + 1
+  local id = next_id
+  local started = vim.uv.hrtime()
+  local output_bytes = 0
+  local debug = require("luma.debug")
+  debug.log("request.start", {
+    id = id,
+    backend = model.backend,
+    model = model.name or model.model,
+    stream = stream,
+    messages = #messages,
+    input_bytes = message_bytes(messages),
+  })
   local stdout = ""
   local stderr = ""
   local parse_error
+  local received = false
   local done = false
   local key, key_err = api_key(model.api_key)
   if key_err then
+    local err = "API key function failed: " .. tostring(key_err)
+    debug.log("request.error", { id = id, error = err })
     vim.schedule(function()
-      opts.on_error("API key function failed: " .. tostring(key_err))
+      opts.on_error(err)
     end)
     return { kill = function() end }
   end
@@ -65,6 +90,8 @@ function M.start(model, messages, opts)
         if done then
           return
         end
+        received = received or text:find("%S") ~= nil
+        output_bytes = output_bytes + #text
         if vim.in_fast_event() then
           vim.schedule(function()
             if not done then
@@ -108,21 +135,52 @@ function M.start(model, messages, opts)
       done = true
       if result.code ~= 0 then
         local message = vim.trim(stderr ~= "" and stderr or result.stderr or "curl failed")
-        opts.on_error(("request failed (%d): %s"):format(result.code, message))
+        local err = ("request failed (%d): %s"):format(result.code, message)
+        debug.log(
+          "request.error",
+          { id = id, elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000), error = err }
+        )
+        opts.on_error(err)
         return
       end
       if parse_error then
+        debug.log("request.error", {
+          id = id,
+          elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
+          error = parse_error,
+        })
         opts.on_error(parse_error)
         return
       end
       if not stream then
         local text, err = backend.parse_response(model, stdout)
         if not text then
+          debug.log("request.error", {
+            id = id,
+            elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
+            error = err,
+          })
           opts.on_error(err)
           return
         end
+        received = text:find("%S") ~= nil
+        output_bytes = #text
         opts.on_delta(text)
       end
+      if not received then
+        local err = "provider returned an empty response"
+        debug.log(
+          "request.error",
+          { id = id, elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000), error = err }
+        )
+        opts.on_error(err)
+        return
+      end
+      debug.log("request.done", {
+        id = id,
+        elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
+        output_bytes = output_bytes,
+      })
       opts.on_done()
     end)
   end)
@@ -133,6 +191,7 @@ function M.start(model, messages, opts)
         return
       end
       done = true
+      debug.log("request.cancel", { id = id, elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000) })
       pcall(process.kill, process, 15)
     end,
   }

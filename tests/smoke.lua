@@ -17,13 +17,24 @@ local function test_config()
     },
     model = "local_ollama",
   })
-  assert(value.prompt == "test")
+  assert(value.prompt == "test" and value.debug == false)
   assert(value.ui.width == 0.5 and value.ui.height == 0.8)
   assert(#value.models == 2 and value.models[1].name == "local_ollama")
   assert(value.models[1].url == "http://127.0.0.1:11434/api/chat")
   assert(value.models[2].url == "https://api.openai.com/v1/chat/completions")
   local again = config.setup({ models = { { name = "only", backend = "ollama", model = "tiny" } } })
   assert(again.model == "only" and #again.models == 1)
+  local original_notify = vim.notify
+  local message
+  vim.notify = function(text, level)
+    message = { text = text, level = level }
+  end
+  config.setup({ debug = true, models = { { name = "only", backend = "ollama", model = "tiny" } } })
+  require("luma.debug").log("test.event", { messages = 2, input_bytes = 10 })
+  vim.notify = original_notify
+  assert(message and message.level == vim.log.levels.DEBUG)
+  assert(message.text == "luma debug: test.event input_bytes=10 messages=2")
+  config.setup({ models = { { name = "only", backend = "ollama", model = "tiny" } } })
 end
 
 local function test_openai_parser()
@@ -52,6 +63,32 @@ local function test_ollama_parser()
   local done, err = parse('o"},"done":false}\n{"message":{"content":""},"done":true}\n', false)
   assert(done and not err)
   assert(table.concat(chunks) == "onetwo")
+end
+
+local function test_empty_response()
+  local original_system = vim.system
+  local error_message
+  vim.system = function(_, opts, callback)
+    opts.stdout(nil, '{"message":{"content":""}}')
+    vim.schedule(function()
+      callback({ code = 0, stdout = "", stderr = "" })
+    end)
+    return { kill = function() end }
+  end
+  require("luma.request").start({ backend = "ollama", model = "test", url = "http://test", stream = false }, {}, {
+    on_delta = function() end,
+    on_error = function(err)
+      error_message = err
+    end,
+    on_done = function()
+      error("empty response must not complete successfully")
+    end,
+  })
+  vim.wait(50, function()
+    return error_message ~= nil
+  end)
+  vim.system = original_system
+  assert(error_message == "provider returned an empty response")
 end
 
 local function test_visual_selection()
@@ -173,9 +210,9 @@ end
 
 local function test_tool_chat()
   local tool_chat = require("luma.tool_chat")
-  local spec = { title = "Translator", system = "Translate", model = "local_ollama", history_max = 3 }
+  local spec = { title = "Translator", system = "Translate", model = "only", history_max = 3 }
   local chat = tool_chat.open("translate", spec)
-  assert(chat.model == "local_ollama")
+  assert(chat.model == "only")
   assert(chat.input:valid() and chat.output:valid())
   assert(chat.output.opts.footer == nil)
   local help_count = 0
@@ -204,6 +241,23 @@ local function test_tool_chat()
   assert(math.abs((group_top + group_bottom) / 2 - vim.o.lines / 2) <= 0.5)
   local history = tool_chat._history_config(chat)
   assert(history.path:match("/tools/translate$") and history.max == 3)
+  local request = require("luma.request")
+  local original_start = request.start
+  rawset(request, "start", function(_, _, opts)
+    vim.schedule(function()
+      opts.on_error("provider unavailable")
+    end)
+    return { kill = function() end }
+  end)
+  vim.api.nvim_buf_set_lines(chat.input.buf, 0, -1, false, { "retry me" })
+  chat.input.opts.actions.submit()
+  vim.wait(50, function()
+    return chat.error ~= nil
+  end)
+  rawset(request, "start", original_start)
+  assert(chat.error == "provider unavailable")
+  assert(chat.input:text() == "retry me")
+  assert(chat.output:text() == "Error: provider unavailable")
   tool_chat.close("translate")
   assert(tool_chat._chats.translate == nil)
 end
@@ -322,6 +376,7 @@ local function test()
   test_config()
   test_openai_parser()
   test_ollama_parser()
+  test_empty_response()
   test_visual_selection()
   test_history()
   test_tools_registry()

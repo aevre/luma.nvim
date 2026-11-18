@@ -1,4 +1,5 @@
 local M = {}
+local next_id = 0
 
 local function key(value)
   return require("luma.request").api_key(value)
@@ -6,9 +7,16 @@ end
 
 function M.search(query, callback)
   local cfg = require("luma.config").get().web_search
+  next_id = next_id + 1
+  local id = next_id
+  local started = vim.uv.hrtime()
+  local debug = require("luma.debug")
+  debug.log("web.start", { id = id, query_bytes = #query, max_results = cfg.max_results or 5 })
   local api_key, err = key(cfg.api_key)
   if err or not api_key then
-    callback(nil, err or "@web_search requires web_search.api_key")
+    local message = err or "@web_search requires web_search.api_key"
+    debug.log("web.error", { id = id, error = message })
+    callback(nil, message)
     return { kill = function() end }
   end
 
@@ -32,11 +40,22 @@ function M.search(query, callback)
   local process = vim.system(args, { text = true }, function(result)
     vim.schedule(function()
       if result.code ~= 0 then
-        callback(nil, vim.trim(result.stderr or "Tavily request failed"))
+        local message = vim.trim(result.stderr or "Tavily request failed")
+        debug.log("web.error", {
+          id = id,
+          elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
+          error = message,
+        })
+        callback(nil, message)
         return
       end
       local ok, data = pcall(vim.json.decode, result.stdout or "")
       if not ok or type(data) ~= "table" then
+        debug.log("web.error", {
+          id = id,
+          elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
+          error = "invalid Tavily response",
+        })
         callback(nil, "invalid Tavily response")
         return
       end
@@ -47,7 +66,14 @@ function M.search(query, callback)
       for i, item in ipairs(data.results or {}) do
         lines[#lines + 1] = ("[%d] %s\n%s\n%s"):format(i, item.title or "Result", item.content or "", item.url or "")
       end
-      callback(table.concat(lines, "\n\n"))
+      local content = table.concat(lines, "\n\n")
+      debug.log("web.done", {
+        id = id,
+        elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
+        results = #(data.results or {}),
+        output_bytes = #content,
+      })
+      callback(content)
     end)
   end)
   return {
