@@ -37,7 +37,7 @@ local function render()
   if #lines == 0 then
     lines = { "# Luma", "", "Type a prompt below. Use /buffer or /file path to add context." }
   end
-  require("luma.ui").render(lines, title())
+  require("luma.ui").render(lines, title(), M.status == "requesting")
 end
 
 local function base_messages()
@@ -58,6 +58,7 @@ function M.new()
   M.source_buf = vim.api.nvim_get_current_buf()
   require("luma.ui").clear_input()
   render()
+  require("luma.ui").refresh_sidebars()
 end
 
 function M.restore(saved)
@@ -68,6 +69,7 @@ function M.restore(saved)
   M.status = "idle"
   M.pending = ""
   render()
+  require("luma.ui").refresh_sidebars()
 end
 
 function M.save()
@@ -108,7 +110,7 @@ local function start_request()
         return
       end
       M.pending = M.pending .. text
-      render()
+      require("luma.ui").render_stream(text, title())
     end,
     on_error = function(err)
       if token ~= M.token then
@@ -130,6 +132,7 @@ local function start_request()
       M.pending = ""
       M.save()
       render()
+      require("luma.ui").refresh_sidebars()
     end,
   })
 end
@@ -187,6 +190,7 @@ function M.set_model(name)
   M.cancel()
   M.model = name
   render()
+  require("luma.ui").refresh_sidebars()
 end
 
 function M.attach(text)

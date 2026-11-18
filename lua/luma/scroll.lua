@@ -1,6 +1,6 @@
 local M = {}
 
-function M.bottom(panel)
+function M.bottom(panel, immediate)
   if not panel or not panel:valid() then
     return
   end
@@ -17,7 +17,7 @@ function M.bottom(panel)
   end
 
   local animate = require("animate")
-  if current == line_count or not animate.enabled({ name = "scroll", buf = panel.buf }) then
+  if immediate or current == line_count or not animate.enabled({ name = "scroll", buf = panel.buf }) then
     move(line_count)
     return
   end

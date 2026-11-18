@@ -4,6 +4,7 @@ local M = { output = nil, input = nil, models = nil, history = nil }
 local sidebar = { models = {}, history = {} }
 local source_window
 local closing_group = false
+local stream_active = false
 
 local function close_group_on_external_close()
   if closing_group then
@@ -393,14 +394,41 @@ function M.clear_input()
   end
 end
 
-function M.render(lines, title)
+function M.render(lines, title, streaming)
   if not M.output or not M.output:buf_valid() then
     return
   end
+  local follow = false
+  if M.output:valid() then
+    local count = vim.api.nvim_buf_line_count(M.output.buf)
+    follow = vim.api.nvim_win_get_cursor(M.output.win)[1] >= count
+  end
   set_lines(M.output, lines)
+  stream_active = streaming and vim.tbl_contains(lines, "## Assistant") or false
   M.output:set_title(title or " Luma ")
-  M.refresh_sidebars()
-  require("luma.scroll").bottom(M.output)
+  if follow then
+    require("luma.scroll").bottom(M.output, streaming)
+  end
+end
+
+function M.render_stream(delta, title)
+  if not stream_active or not M.output or not M.output:buf_valid() then
+    return
+  end
+  local follow = false
+  if M.output:valid() then
+    local count = vim.api.nvim_buf_line_count(M.output.buf)
+    follow = vim.api.nvim_win_get_cursor(M.output.win)[1] >= count
+  end
+  local last = vim.api.nvim_buf_line_count(M.output.buf) - 1
+  local line = vim.api.nvim_buf_get_lines(M.output.buf, last, last + 1, false)[1] or ""
+  vim.bo[M.output.buf].modifiable = true
+  vim.api.nvim_buf_set_text(M.output.buf, last, #line, last, #line, vim.split(delta, "\n", { plain = true }))
+  vim.bo[M.output.buf].modifiable = false
+  M.output:set_title(title or " Luma ")
+  if follow then
+    require("luma.scroll").bottom(M.output, true)
+  end
 end
 
 function M.focus_input()
