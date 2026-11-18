@@ -349,10 +349,10 @@ local function test_window_lifecycle()
   assert(ui.input_text() == "translate this")
   ui.clear_input()
   assert(ui.input_text() == "")
-  ui.render({ "## You", "", "hello", "", "## Assistant", "", "" }, " Test… ", true)
+  ui.render({ "##  You", "", "hello", "", "## 󰚩 Assistant", "", "" }, " Test… ", true)
   ui.render_stream("one", " Test… ")
   ui.render_stream("\ntwo", " Test… ")
-  assert(ui.output:text() == "## You\n\nhello\n\n## Assistant\n\none\ntwo")
+  assert(ui.output:text() == "##  You\n\nhello\n\n## 󰚩 Assistant\n\none\ntwo")
   for _ = 1, 1000 do
     ui.render_stream("x", " Test… ")
   end

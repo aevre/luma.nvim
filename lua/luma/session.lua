@@ -19,11 +19,17 @@ local function title()
   return (" Luma · %s%s "):format(M.model or "?", suffix)
 end
 
+local headings = {
+  user = "##  You",
+  assistant = "## 󰚩 Assistant",
+  error = "##  Error",
+}
+
 local function render()
   local lines = {}
   for _, message in ipairs(M.messages) do
     if message.role ~= "system" then
-      local heading = message.role == "user" and "## You" or "## Assistant"
+      local heading = headings[message.role] or ("## " .. message.role)
       lines[#lines + 1] = heading
       lines[#lines + 1] = ""
       vim.list_extend(lines, vim.split(message.content or "", "\n", { plain = true }))
@@ -31,11 +37,11 @@ local function render()
     end
   end
   if M.status == "requesting" then
-    lines[#lines + 1] = "## Assistant"
+    lines[#lines + 1] = headings.assistant
     lines[#lines + 1] = ""
     vim.list_extend(lines, vim.split(M.pending, "\n", { plain = true }))
   elseif M.error then
-    lines[#lines + 1] = "## Error"
+    lines[#lines + 1] = headings.error
     lines[#lines + 1] = ""
     lines[#lines + 1] = M.error
   end

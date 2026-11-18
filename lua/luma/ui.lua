@@ -443,7 +443,7 @@ function M.render(lines, title, streaming)
     follow = vim.api.nvim_win_get_cursor(M.output.win)[1] >= count
   end
   set_lines(M.output, lines)
-  stream_active = streaming and vim.tbl_contains(lines, "## Assistant") or false
+  stream_active = streaming or false
   M.output:set_title(title or " Luma ")
   if follow then
     require("luma.scroll").bottom(M.output, streaming)
