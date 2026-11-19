@@ -101,7 +101,7 @@ function M.start(model, messages, opts)
     args[#args + 1] = "Authorization: Bearer " .. key
   end
   args[#args + 1] = "--data-binary"
-  args[#args + 1] = vim.json.encode(body)
+  args[#args + 1] = "@-"
   args[#args + 1] = model.url
   for _, header in ipairs(model.headers or {}) do
     table.insert(args, #args, "--header")
@@ -129,6 +129,7 @@ function M.start(model, messages, opts)
 
   local process = vim.system(args, {
     text = true,
+    stdin = vim.json.encode(body),
     timeout = model.timeout or cfg.timeout,
     stdout = function(_, data)
       if not data or done then

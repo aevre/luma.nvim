@@ -94,6 +94,42 @@ local function test_empty_response()
   assert(error_message == "provider returned an empty response")
 end
 
+local function test_large_request_body_uses_stdin()
+  local original_system = vim.system
+  local completed = false
+  local prompt = string.rep("x", 256 * 1024)
+  rawset(vim, "system", function(args, opts, callback)
+    assert(vim.tbl_contains(args, "@-"))
+    assert(not vim.tbl_contains(args, prompt))
+    assert(type(opts.stdin) == "string" and #opts.stdin > #prompt)
+    local body = vim.json.decode(opts.stdin)
+    assert(body.messages[2].content == prompt)
+    opts.stdout(nil, '{"message":{"content":"ok"}}')
+    vim.schedule(function()
+      callback({ code = 0, stdout = "", stderr = "" })
+    end)
+    return { kill = function() end }
+  end)
+  require("luma.request").start({ backend = "ollama", model = "test", url = "http://test", stream = false }, {
+    { role = "system", content = "test" },
+    { role = "user", content = prompt },
+  }, {
+    on_delta = function(text)
+      assert(text == "ok")
+    end,
+    on_error = function(err)
+      error(err)
+    end,
+    on_done = function()
+      completed = true
+    end,
+  })
+  assert(vim.wait(50, function()
+    return completed
+  end))
+  rawset(vim, "system", original_system)
+end
+
 local function test_visual_selection()
   local original = vim.api.nvim_get_current_buf()
   local scratch = vim.api.nvim_create_buf(false, true)
@@ -597,6 +633,7 @@ local function test()
   test_openai_parser()
   test_ollama_parser()
   test_empty_response()
+  test_large_request_body_uses_stdin()
   test_visual_selection()
   test_context_completion()
   test_history()
