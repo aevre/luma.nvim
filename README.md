@@ -82,6 +82,8 @@ Run it with `:LumaTool explain` or from a Visual selection.
 
 ## Development
 
+Run `:checkhealth luma` in Neovim to inspect runtime requirements and model credentials without exposing secrets. `make health` exercises the same provider headlessly.
+
 ```sh
 make check
 make test

@@ -82,6 +82,8 @@ opts = {
 
 ## 开发
 
+在 Neovim 中运行 `:checkhealth luma` 检查运行环境和模型凭据，报告不会暴露密钥。`make health` 会以 headless 模式验证同一个 provider。
+
 ```sh
 make check
 make test
