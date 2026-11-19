@@ -1,5 +1,8 @@
 local M = {}
 
+---Follow new output only when the viewport was already at the bottom.
+---@param panel? luma.Window
+---@param immediate? boolean
 function M.bottom(panel, immediate)
   if not panel or not panel:valid() then
     return

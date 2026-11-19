@@ -1,11 +1,66 @@
 local Win = require("win")
 
+---@class luma.TaskHandle
+---@field cancel fun()
+---@field kill fun()
+
+---@class luma.GenerateSpec
+---@field system string
+---@field user string
+---@field title? string
+---@field model? string
+---@field loading? boolean|string|table
+---@field window? table
+---@field on_done? fun(result: string, output: luma.Window)
+---@field on_error? fun(error: string)
+---@field tool? string Internal registered-tool identity used for isolated history.
+---@field history? boolean
+---@field history_max? integer
+
+---@class luma.ToolSpec
+---@field source? "auto"|"selection"|"buffer"|"prompt"
+---@field input_title? string
+---@field title? string
+---@field system? string|fun(ctx: luma.ToolContext, input: string): string
+---@field instruction? string|fun(ctx: luma.ToolContext, input: string): string
+---@field model? string
+---@field loading? boolean|string|table
+---@field window? table
+---@field history? boolean
+---@field history_max? integer
+---@field on_done? fun(result: string, output: luma.Window)
+---@field on_error? fun(error: string)
+---@field run? fun(ctx: luma.ToolContext)
+
+---@class luma.ToolContext
+---@field name string
+---@field tool luma.ToolSpec
+---@field has_range boolean
+---@field visual fun(): string?, luma.SelectionRange|string?
+---@field source fun(has_range?: boolean): string?, luma.SelectionRange|string?
+---@field generate fun(spec: luma.GenerateSpec): luma.TaskHandle
+---@field chat fun(spec: luma.ToolChatSpec): luma.ToolChat
+---@field cancel fun(): boolean
+---@field loading fun(opts?: table): fun()
+---@field panel fun(title: string, keys?: table, opts?: table): luma.Window
+---@field strip_fence fun(text: string): string
+
+---@class luma.PendingToolRequest
+---@field cancel fun()
+---@field bufnr integer
+
+---@class luma.CancelMapState
+---@field count integer
+---@field key string
+---@field mapped boolean
+
 local M = {}
-local registry = {}
-local pending = {}
-local cancel_maps = {}
+local registry = {} ---@type table<string, luma.ToolSpec>
+local pending = {} ---@type table<integer, luma.PendingToolRequest>
+local cancel_maps = {} ---@type table<integer, luma.CancelMapState>
 local next_request_id = 0
 
+---@param bufnr integer
 local function remove_cancel_map(bufnr)
   local state = cancel_maps[bufnr]
   if not state then
@@ -22,6 +77,8 @@ local function remove_cancel_map(bufnr)
   end
 end
 
+---Reference-count the shared cancel mapping without replacing a user's local mapping.
+---@param bufnr integer
 local function add_cancel_map(bufnr)
   local state = cancel_maps[bufnr]
   if state then
@@ -45,6 +102,7 @@ local function add_cancel_map(bufnr)
   end, { buffer = bufnr, desc = "Cancel Luma task" })
 end
 
+---@param id integer
 local function finish_request(id)
   local active = pending[id]
   if not active then
@@ -65,10 +123,14 @@ local function close_help()
   return false
 end
 
+---@param text string
+---@return string
 function M.strip_fence(text)
   return text:match("^%s*```[^\n]*\n(.-)\n```%s*$") or text
 end
 
+---@return string? text
+---@return luma.SelectionRange|string? selection_or_error
 function M.visual()
   local text, range = require("luma.context").visual()
   if not text then
@@ -78,6 +140,9 @@ function M.visual()
   return text, range
 end
 
+---@param has_range? boolean
+---@return string? text
+---@return luma.SelectionRange|string? selection_or_error
 function M.source(has_range)
   if has_range then
     return M.visual()
@@ -86,6 +151,8 @@ function M.source(has_range)
   return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"), { bufnr = bufnr }
 end
 
+---@param opts? table
+---@return fun() cleanup
 local function spinner(opts)
   if opts == false then
     return function() end
@@ -149,6 +216,8 @@ local function spinner(opts)
   end
 end
 
+---@param text string
+---@return { width: integer, height: integer }
 local function result_size(text)
   local lines = vim.split(text ~= "" and text or " ", "\n", { plain = true })
   local longest = 1
@@ -161,6 +230,10 @@ local function result_size(text)
   }
 end
 
+---@param title string
+---@param keys? table
+---@param opts? table
+---@return luma.Window
 function M.panel(title, keys, opts)
   keys = keys or {}
   local function close_or(action, self)
@@ -220,6 +293,9 @@ function M.panel(title, keys, opts)
   }, opts or {}))
 end
 
+---Run one generated-result request and persist it only after successful completion.
+---@param spec luma.GenerateSpec
+---@return luma.TaskHandle
 function M.generate(spec)
   if type(spec) ~= "table" then
     error("luma: generate requires a spec table")
@@ -244,6 +320,7 @@ function M.generate(spec)
     if not pending[request_id] then
       return
     end
+    -- Remove pending state first so repeated cancellation is harmless.
     finish_request(request_id)
     clear_spinner()
     if request then
@@ -314,6 +391,9 @@ function M.cancel()
   return #active > 0
 end
 
+---@param spec luma.ToolSpec
+---@param ctx luma.ToolContext
+---@return luma.TaskHandle?
 local function declarative(spec, ctx)
   local source = spec.source or "auto"
   local input
@@ -353,6 +433,9 @@ local function declarative(spec, ctx)
   })
 end
 
+---@param name string
+---@param spec luma.ToolSpec|fun(ctx: luma.ToolContext)
+---@return table
 function M.register(name, spec)
   if type(name) ~= "string" or name == "" then
     error("luma: tool name must be a non-empty string")
@@ -367,20 +450,25 @@ function M.register(name, spec)
   return M
 end
 
+---@param name string
 function M.unregister(name)
   registry[name] = nil
 end
 
+---@param name string
+---@return luma.ToolSpec?
 function M.get(name)
   return registry[name]
 end
 
+---@return string[]
 function M.names()
   local names = vim.tbl_keys(registry)
   table.sort(names)
   return names
 end
 
+---@param tools? table<string, luma.ToolSpec|fun(ctx: luma.ToolContext)|false>
 function M.setup(tools)
   M.cancel()
   registry = {}
@@ -395,13 +483,16 @@ M.loading = spinner
 M._result_size = result_size
 M._spinner = spinner
 
+---@param name string
+---@param has_range? boolean
+---@return unknown
 function M.run(name, has_range)
   local spec = registry[name]
   if not spec then
     vim.notify("luma: unknown tool " .. tostring(name), vim.log.levels.ERROR)
     return
   end
-  local ctx = {
+  local ctx = { ---@type luma.ToolContext
     name = name,
     tool = spec,
     has_range = has_range == true,

@@ -4,46 +4,58 @@
 
 | Command | Action |
 | --- | --- |
-| `:LumaToggle` | Show or hide the chat UI. |
-| `:LumaSubmit [prompt]` | Submit the argument or current Prompt buffer. |
+| `:LumaToggle` | Show or hide the main UI. |
+| `:LumaSubmit [prompt]` | Submit the argument or the current Prompt buffer. |
 | `:LumaCancel` | Cancel active chat and one-off tool requests. |
-| `:LumaNew` | Start a new chat session. |
-| `:LumaHistory [all\|chat\|tool name]` | Open main-chat history or browse an isolated tool history. |
-| `:LumaModel [name]` | Select or switch the active model. |
-| `:LumaTool {name}` | Run a registered user tool; Visual ranges are supported. |
+| `:LumaNew` | Start a new chat. |
+| `:LumaHistory [all\|chat\|tool name]` | Browse saved chat or tool history. |
+| `:LumaModel [name]` | Select a model. |
+| `:LumaTool {name}` | Run a registered tool. Visual ranges are supported. |
 
-## Chat windows
+## Main windows
 
-The main chat coordinates four windows: Chat, Prompt, Models, and History.
+The floating UI contains four windows:
 
-- `i`, `o`, `m`, and `h` move between windows.
-- `<CR>` selects a model or restores a history item.
-- `d` in the main History window deletes the selected entry after confirmation.
-- `<Esc>` returns to Prompt.
-- `?` opens key help.
-- `q` closes the complete group.
+- **Chat** shows the conversation.
+- **Prompt** accepts input.
+- **Models** switches the active model.
+- **History** restores or deletes saved chats.
 
-Prompt enters Insert mode by default when `ui.start_insert` is enabled. Streaming output appends to the active Assistant response and does not force the viewport to the bottom after manual scrolling.
+Use `i`, `o`, `m`, and `h` to move between them. Press `<CR>` to select an item, `<Esc>` to return to Prompt, `?` for key help, and `q` to close the group.
 
-`:LumaHistory all` first selects the main chat or a tool scope. Tool entries can be opened as read-only snapshots or deleted; opening history never reruns a tool or its side effects. Programmatic management uses `luma.history_delete(id, opts)` and `luma.history_clear(opts)` with `{ scope = "chat" }` or `{ scope = "tool", tool = "name" }`. These APIs do not prompt, and deletion is permanent.
+Prompt starts in Insert mode when `ui.start_insert` is enabled. Streaming follows the output only while the cursor is already at the bottom, so manual scrolling is not interrupted.
 
-## Context directives
+## Context
 
-Chat prompts support:
+Add context directives anywhere in a prompt:
 
-- `/buffer` to append the source buffer.
-- `/buffer number` to append another listed and loaded buffer.
-- `/file path` to append a file within `max_context_bytes`.
-- `@web_search query` to search Tavily when configured.
-- `diagnostics = true` to append source-buffer diagnostics automatically.
+| Directive | Result |
+| --- | --- |
+| `/buffer` | Append the source buffer. |
+| `/buffer number` | Append another listed and loaded buffer. |
+| `/file path` | Append a file. |
+| `@web_search query` | Search Tavily and append the result. |
 
-Unknown buffers and unreadable files produce an explicit error instead of silently dropping context.
+File and buffer content share the `max_context_bytes` limit. Unknown buffers and unreadable files return an error.
+
+Set `diagnostics = true` to append diagnostics from the source buffer to every main-chat submission.
+
+## History
+
+Main chat and each tool have separate history scopes.
+
+- Use `<CR>` in History to restore a chat.
+- Use `d` to delete the selected chat after confirmation.
+- Run `:LumaHistory all` to choose between main-chat and tool history.
+- Opening tool history shows a saved snapshot. It does not run the tool again.
+
+History deletion is permanent. The Lua API also provides non-interactive delete and clear functions; see [Lua API](api.md#history).
 
 ## Completion
 
-Prompt exposes directives, listed buffers, and file paths through its standard `completefunc`. Luma returns candidates but does not open, replace, or control an external completion menu.
+Prompt exposes directives, loaded buffers, and file paths through Neovim's `completefunc`.
 
-Without a completion plugin, use Neovim's native user-defined completion:
+Without a completion plugin, press:
 
 ```text
 <C-x><C-u>
@@ -51,7 +63,7 @@ Without a completion plugin, use Neovim's native user-defined completion:
 
 ### blink.cmp
 
-Add a provider backed by the current buffer's `completefunc`:
+Use blink.cmp's `complete_func` source:
 
 ```lua
 sources = {
@@ -73,11 +85,9 @@ sources = {
 }
 ```
 
-The provider is enabled only in buffers that define `completefunc`, so ordinary code buffers keep their normal source set.
-
 ### nvim-cmp
 
-`nvim-cmp` does not include a source that reads an existing buffer `completefunc`. Keep native `<C-x><C-u>` available, or explicitly forward that key sequence when cmp mappings override it:
+nvim-cmp does not read a buffer's `completefunc` by default. Keep native `<C-x><C-u>` available, or forward it from a cmp mapping:
 
 ```lua
 local cmp = require("cmp")
@@ -91,14 +101,18 @@ cmp.setup({
 })
 ```
 
-This opens Neovim's native completion menu for Luma candidates; other nvim-cmp sources continue to use the cmp menu.
-
 ## Tools
 
-Run configured tools with `:LumaTool name`. A Visual range is passed to the tool when the command is invoked as:
+Run a configured tool with:
+
+```vim
+:LumaTool explain
+```
+
+To pass a Visual selection:
 
 ```vim
 :'<,'>LumaTool explain
 ```
 
-See [Writing Luma Tools](tools.md) for tool definitions and [complete examples](../examples/tools.lua).
+See [Writing tools](tools.md) for tool definitions and [complete examples](../examples/tools.lua).

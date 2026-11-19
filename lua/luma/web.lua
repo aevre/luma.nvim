@@ -1,10 +1,27 @@
+---@class luma.TavilyResult
+---@field title? string
+---@field content? string
+---@field url? string
+
+---@class luma.TavilyResponse
+---@field answer? string
+---@field results? luma.TavilyResult[]
+
+---@alias luma.WebSearchCallback fun(content?: string, error?: string)
+
 local M = {}
 local next_id = 0
 
+---@param value? luma.ApiKey
+---@return string? key
+---@return string? error
 local function key(value)
   return require("luma.request").api_key(value)
 end
 
+---@param query string
+---@param callback luma.WebSearchCallback
+---@return luma.RequestHandle
 function M.search(query, callback)
   local cfg = require("luma.config").get().web_search
   next_id = next_id + 1
@@ -83,6 +100,10 @@ function M.search(query, callback)
   }
 end
 
+---Call back synchronously without a directive, or asynchronously after Tavily search.
+---@param text string
+---@param callback luma.WebSearchCallback
+---@return luma.RequestHandle?
 function M.inject(text, callback)
   if not text:find("@web_search", 1, true) then
     callback(text)

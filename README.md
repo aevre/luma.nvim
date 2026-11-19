@@ -1,17 +1,17 @@
 # luma.nvim
 
-A small Neovim 0.10+ LLM client built on [win.nvim](https://github.com/aevre/win.nvim) and [animate.nvim](https://github.com/aevre/animate.nvim). It provides streaming chat, multiple models, saved sessions, context expansion, optional Tavily search, and a user-defined tool API without NUI or Plenary.
+A small Neovim 0.10+ LLM client with streaming chat, multiple models, saved history, context expansion, optional web search, and user-defined tools.
 
 [简体中文](README.zh-CN.md)
 
 ## Requirements
 
-- Neovim 0.10 or newer.
-- `curl` available in `$PATH`.
-- [win.nvim](https://github.com/aevre/win.nvim).
-- [animate.nvim](https://github.com/aevre/animate.nvim).
+- Neovim 0.10 or newer
+- `curl` in `$PATH`
+- [win.nvim](https://github.com/aevre/win.nvim)
+- [animate.nvim](https://github.com/aevre/animate.nvim)
 
-## Installation
+## Install
 
 ```lua
 {
@@ -34,9 +34,15 @@ A small Neovim 0.10+ LLM client built on [win.nvim](https://github.com/aevre/win
 }
 ```
 
-`api_key` may be an environment variable name, a literal key, or a function returning a key. See [Configuration](docs/configuration.md) for OpenAI-compatible models, Ollama, UI, keys, history, Tavily, and debug logging.
+Set the key before starting Neovim:
 
-## Usage
+```sh
+export OPENROUTER_API_KEY="..."
+```
+
+`api_key` may be an environment variable name, a literal key, or a function that returns a key.
+
+## Use
 
 ```vim
 :LumaToggle
@@ -46,68 +52,37 @@ A small Neovim 0.10+ LLM client built on [win.nvim](https://github.com/aevre/win
 :LumaCancel
 ```
 
-The chat has Chat, Prompt, Models, and History windows. Prompt supports `/buffer`, `/file`, `@web_search`, diagnostics, and standard `completefunc` completion.
+The main UI contains Chat, Prompt, Models, and History windows. Add `/buffer`, `/file path`, or `@web_search query` to a prompt to include extra context.
 
-See [Using Luma](docs/usage.md) for commands, navigation, context directives, native completion, blink.cmp, and nvim-cmp integration.
-
-## Tools
-
-Luma registers no concrete tools by default. A minimal declarative tool looks like this:
+Luma does not register concrete tools by default. Add tools to the same `opts` table:
 
 ```lua
-require("luma").setup({
+opts = {
   tools = {
     explain = {
       source = "auto",
       system = "Explain the supplied code clearly.",
     },
   },
-})
+}
 ```
 
-Use `source = "auto"`, `"selection"`, `"buffer"`, or `"prompt"` to state where input comes from. Custom workflows use a `run(ctx)` function and named-field `ctx.generate({ ... })` calls.
-
-See [Writing Luma Tools](docs/tools.md) for every field, execution flow, custom runs, isolated tool chats, cancellation, guarded rewrites, and side-effect safety. [`examples/tools.lua`](examples/tools.lua) contains complete examples.
-
-## API
-
-```lua
-local luma = require("luma")
-
-luma.setup(opts?)
-luma.toggle()
-luma.submit(text?)
-luma.cancel()
-luma.new()
-luma.resend()
-luma.history(opts?)
-luma.history_delete(id, opts?)
-luma.history_clear(opts?)
-luma.model(name?)
-luma.tool(name, has_range?)
-```
-
-Supported backends are OpenAI-compatible chat completions and Ollama chat.
+Run it with `:LumaTool explain` or from a Visual selection.
 
 ## Documentation
 
-- [Configuration](docs/configuration.md)
+- [Getting started](docs/getting-started.md)
 - [Using Luma](docs/usage.md)
-- [Writing Luma Tools](docs/tools.md)
-- [llm.nvim API Keys and Free Providers](docs/llm-api-keys.md)
+- [Configuration](docs/configuration.md)
+- [Providers and API keys](docs/providers.md)
+- [Writing tools](docs/tools.md)
+- [Lua API](docs/api.md)
+- [Development](docs/development.md)
 - [Complete tool examples](examples/tools.lua)
 
 ## Development
 
-Run from the repository root:
-
 ```sh
 make check
 make test
-```
-
-Override local dependency paths when needed:
-
-```sh
-make test WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim
 ```

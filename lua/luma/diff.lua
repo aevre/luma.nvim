@@ -1,12 +1,19 @@
 local Win = require("win")
 
+---@class luma.RewriteRange: luma.SelectionRange
+---@field changedtick integer
+
 local M = {}
 
+---@param text string
+---@return string
 local function strip_fence(text)
   local fenced = text:match("^%s*```[^\n]*\n(.-)\n```%s*$")
   return fenced or text
 end
 
+---@param selection luma.RewriteRange
+---@return boolean
 local function valid_range(selection)
   local lines = vim.api.nvim_buf_get_lines(selection.bufnr, 0, -1, false)
   local start_line = selection.start_line
@@ -22,12 +29,17 @@ local function valid_range(selection)
     and selection.end_col <= end_length
 end
 
+---Preview a rewrite and apply it only if the source buffer and byte range are unchanged.
+---@param source string
+---@param proposed string
+---@param selection luma.RewriteRange
 function M.show(source, proposed, selection)
   proposed = strip_fence(proposed)
   local closed = false
   local left
   local right
 
+  -- Either linked window may close first, so cleanup must be idempotent.
   local function close()
     if closed then
       return

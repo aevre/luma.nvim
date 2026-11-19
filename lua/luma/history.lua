@@ -1,5 +1,45 @@
+---@alias luma.HistoryMessage luma.Message
+
+---@class luma.HistoryEntryInput
+---@field id? string
+---@field kind? "chat"|"generate"
+---@field tool? string
+---@field model? string
+---@field messages? luma.Message[]
+---@field created_at? integer
+---@field updated_at? integer
+
+---@class luma.HistoryEntry: luma.HistoryEntryInput
+---@field id string
+
+---@class luma.HistoryConfig
+---@field path string
+---@field max? integer
+
+---@class luma.HistoryOptions
+---@field scope? "chat"|"tool"|"all"
+---@field tool? string
+---@field max? integer
+
+---@class luma.HistoryScope
+---@field scope "chat"|"tool"
+---@field tool? string
+---@field name string
+
+---@class luma.HistoryClearFailure
+---@field id string
+---@field error string
+
+---@class luma.HistoryClearResult
+---@field deleted integer
+---@field failed luma.HistoryClearFailure[]
+
 local M = {}
 
+---@param value unknown
+---@param label string
+---@return string? name
+---@return string? error
 local function safe_name(value, label)
   if type(value) ~= "string" or value == "" or value == "." or value == ".." or not value:match("^[%w%._-]+$") then
     return nil, "invalid " .. label
@@ -7,6 +47,10 @@ local function safe_name(value, label)
   return value
 end
 
+---Keep common tool names readable and encode names that cannot be path components.
+---@param value unknown
+---@return string? directory
+---@return string? error
 local function encode_name(value)
   if type(value) ~= "string" or value == "" then
     return nil, "invalid tool name"
@@ -19,6 +63,8 @@ local function encode_name(value)
   end)
 end
 
+---@param value string
+---@return string
 local function decode_name(value)
   if value:sub(1, 1) ~= "@" or #value % 2 ~= 1 or not value:sub(2):match("^%x+$") then
     return value
@@ -28,6 +74,10 @@ local function decode_name(value)
   end))
 end
 
+---Resolve a public scope or an internal explicit path to one storage directory.
+---@param opts? luma.HistoryOptions|luma.HistoryConfig
+---@return luma.HistoryConfig? config
+---@return string? error
 local function config(opts)
   if opts and opts.path then
     return opts
@@ -46,6 +96,10 @@ local function config(opts)
   return nil, "invalid history scope"
 end
 
+---History IDs are validated before they are joined to the configured directory.
+---@param id unknown
+---@return string? id
+---@return string? error
 local function history_id(id)
   if type(id) == "string" then
     id = id:gsub("%.json$", "")
@@ -53,6 +107,9 @@ local function history_id(id)
   return safe_name(id, "history id")
 end
 
+---@param path string
+---@return table? value
+---@return string? error
 local function read(path)
   local fd, err = io.open(path, "rb")
   if not fd then
@@ -64,6 +121,10 @@ local function read(path)
   return ok and decoded or nil, ok and nil or decoded
 end
 
+---@param path string
+---@param value table
+---@return boolean? success
+---@return string? error
 local function write(path, value)
   local fd, err = io.open(path, "wb")
   if not fd then
@@ -79,8 +140,10 @@ local function write(path, value)
   return wrote and true or nil, write_err
 end
 
+---@param path string
+---@return string[]
 local function files(path)
-  local ret = {}
+  local ret = {} ---@type string[]
   local handle = vim.uv.fs_scandir(path)
   if not handle then
     return ret
@@ -100,6 +163,10 @@ local function files(path)
   return ret
 end
 
+---@param session luma.HistoryEntryInput
+---@param opts? luma.HistoryOptions|luma.HistoryConfig
+---@return string? id
+---@return string? error
 function M.save(session, opts)
   local cfg, config_err = config(opts)
   if not cfg then
@@ -122,6 +189,10 @@ function M.save(session, opts)
   return valid_id
 end
 
+---@param id string
+---@param opts? luma.HistoryOptions|luma.HistoryConfig
+---@return luma.HistoryEntry? entry
+---@return string? error
 function M.load(id, opts)
   local cfg, config_err = config(opts)
   if not cfg then
@@ -134,12 +205,14 @@ function M.load(id, opts)
   return read(cfg.path .. "/" .. valid_id .. ".json")
 end
 
+---@param opts? luma.HistoryOptions|luma.HistoryConfig
+---@return luma.HistoryEntry[]
 function M.list(opts)
   local cfg = config(opts)
   if not cfg then
     return {}
   end
-  local ret = {}
+  local ret = {} ---@type luma.HistoryEntry[]
   for _, name in ipairs(files(cfg.path)) do
     local item = read(cfg.path .. "/" .. name)
     if item then
@@ -150,6 +223,11 @@ function M.list(opts)
   return ret
 end
 
+---Delete one entry from exactly one resolved history directory.
+---@param id string
+---@param opts? luma.HistoryOptions|luma.HistoryConfig
+---@return boolean? success
+---@return string? error
 function M.delete(id, opts)
   local cfg, config_err = config(opts)
   if not cfg then
@@ -168,12 +246,16 @@ function M.delete(id, opts)
   return ok and true or nil, err and ("failed to delete history: " .. tostring(err)) or "failed to delete history"
 end
 
+---Delete only JSON history files in the selected scope; directories are retained.
+---@param opts? luma.HistoryOptions|luma.HistoryConfig
+---@return luma.HistoryClearResult? result
+---@return string? error
 function M.clear(opts)
   local cfg, config_err = config(opts)
   if not cfg then
     return nil, config_err
   end
-  local result = { deleted = 0, failed = {} }
+  local result = { deleted = 0, failed = {} } ---@type luma.HistoryClearResult
   for _, name in ipairs(files(cfg.path)) do
     local id = name:sub(1, -6)
     local ok, err = M.delete(id, cfg)
@@ -186,9 +268,11 @@ function M.clear(opts)
   return result
 end
 
+---Discover the main chat and tool directories that Luma can safely decode.
+---@return luma.HistoryScope[]
 function M.scopes()
   local cfg = require("luma.config").get().history
-  local ret = { { scope = "chat", name = "chat" } }
+  local ret = { { scope = "chat", name = "chat" } } ---@type luma.HistoryScope[]
   local handle = vim.uv.fs_scandir(cfg.path .. "/tools")
   if not handle then
     return ret
@@ -214,6 +298,7 @@ function M.scopes()
   return ret
 end
 
+---@param opts? luma.HistoryOptions|luma.HistoryConfig
 function M.prune(opts)
   local cfg = config(opts)
   if not cfg then

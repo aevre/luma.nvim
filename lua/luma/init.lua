@@ -1,4 +1,17 @@
-local M = {}
+---@class luma.API
+---@field setup fun(opts?: luma.ConfigInput): luma.API
+---@field toggle fun()
+---@field submit fun(text?: string)
+---@field cancel fun()
+---@field new fun()
+---@field resend fun()
+---@field history fun(opts?: luma.HistoryOptions)
+---@field history_delete fun(id: string, opts?: luma.HistoryOptions): boolean?, string?
+---@field history_clear fun(opts?: luma.HistoryOptions): luma.HistoryClearResult?, string?
+---@field model fun(name?: string)
+---@field tool fun(name: string, has_range?: boolean)
+
+local M = {} ---@type luma.API
 local bootstrapped = false
 
 local highlights = {
@@ -22,6 +35,8 @@ local function setup_highlights()
   end
 end
 
+---@param values fun(): string[]
+---@return fun(arg: string): string[]
 local function complete(values)
   return function(arg)
     return vim.tbl_filter(function(value)
@@ -30,6 +45,9 @@ local function complete(values)
   end
 end
 
+---Reset configuration, tool registrations, UI objects, and session state coherently.
+---@param opts? luma.ConfigInput
+---@return luma.API
 function M.setup(opts)
   local config = require("luma.config").setup(opts)
   require("luma.tools").setup(config.tools)
@@ -49,6 +67,7 @@ function M.toggle()
   end
 end
 
+---@param text? string
 function M.submit(text)
   require("luma.ui").open()
   require("luma.session").submit(text)
@@ -69,12 +88,17 @@ function M.resend()
   require("luma.session").resend()
 end
 
+---@param item luma.HistoryEntry
+---@return string
 local function history_label(item)
   local first = item.messages and item.messages[1] and item.messages[1].content or item.id
   first = vim.trim((first or item.id):gsub("%s+", " "))
   return ("%s · %s"):format(item.model or "?", first:sub(1, 60))
 end
 
+---Open a saved tool result as a read-only snapshot without rerunning the tool.
+---@param item luma.HistoryEntry
+---@param tool string
 local function show_tool_history(item, tool)
   local lines = { "# " .. tool, "" }
   for _, message in ipairs(item.messages or {}) do
@@ -90,6 +114,7 @@ local function show_tool_history(item, tool)
   panel:show()
 end
 
+---@param opts luma.HistoryOptions
 local function select_history(opts)
   local items = require("luma.history").list(opts)
   if #items == 0 then
@@ -125,6 +150,8 @@ local function select_history(opts)
   end)
 end
 
+---Browse main-chat history, one tool scope, or all discovered scopes.
+---@param opts? luma.HistoryOptions
 function M.history(opts)
   opts = opts or { scope = "chat" }
   if opts.scope ~= "all" then
@@ -143,11 +170,18 @@ function M.history(opts)
   end)
 end
 
+---Delete one entry without prompting; confirmation belongs to interactive callers.
+---@param id string
+---@param opts? luma.HistoryOptions
+---@return boolean? success
+---@return string? error
 function M.history_delete(id, opts)
   opts = opts or {}
+  -- Public management accepts named scopes only, never an arbitrary filesystem path.
   opts = { scope = opts.scope or "chat", tool = opts.tool }
   local ok, err = require("luma.history").delete(id, opts)
   if ok and opts.scope ~= "tool" and id:gsub("%.json$", "") == require("luma.session").current_id() then
+    -- Reset memory so the next submission cannot recreate the deleted session ID.
     require("luma.session").new()
   elseif ok then
     require("luma.ui").refresh_sidebars()
@@ -155,8 +189,13 @@ function M.history_delete(id, opts)
   return ok, err
 end
 
+---Clear one scope without prompting and report partial deletion failures.
+---@param opts? luma.HistoryOptions
+---@return luma.HistoryClearResult? result
+---@return string? error
 function M.history_clear(opts)
   opts = opts or {}
+  -- Public management accepts named scopes only, never an arbitrary filesystem path.
   opts = { scope = opts.scope or "chat", tool = opts.tool }
   local result, err = require("luma.history").clear(opts)
   local current_id = require("luma.session").current_id()
@@ -168,6 +207,7 @@ function M.history_clear(opts)
   return result, err
 end
 
+---@param name? string
 function M.model(name)
   if name and name ~= "" then
     require("luma.session").set_model(name)
@@ -180,10 +220,13 @@ function M.model(name)
   end)
 end
 
+---@param name string
+---@param has_range? boolean
 function M.tool(name, has_range)
   require("luma.tools").run(name, has_range)
 end
 
+---Register commands and highlight restoration exactly once per runtime.
 function M._bootstrap()
   if bootstrapped then
     return

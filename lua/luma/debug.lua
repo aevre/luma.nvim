@@ -1,9 +1,13 @@
+---@alias luma.DebugFields table<string, string|number|boolean|nil>
+
 local M = {}
 
 local function enabled()
   return require("luma.config").get().debug == true
 end
 
+---@param event string
+---@param fields? luma.DebugFields
 function M.log(event, fields)
   if not enabled() then
     return

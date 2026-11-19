@@ -1,3 +1,4 @@
+-- Keep runtime reloads from registering duplicate commands or autocmds.
 if vim.g.loaded_luma_nvim then
   return
 end

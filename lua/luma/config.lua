@@ -1,6 +1,84 @@
+---@alias luma.ApiKey string|fun(): string?
+---@alias luma.MessageRole "system"|"user"|"assistant"
+
+---@class luma.Message
+---@field role luma.MessageRole|string
+---@field content string
+
+---@class luma.ModelInput
+---@field name? string
+---@field backend? "openai"|"ollama"
+---@field model? string
+---@field url? string
+---@field api_key? luma.ApiKey
+---@field headers? string[]
+---@field stream? boolean
+---@field timeout? integer
+
+---@class luma.ModelConfig: luma.ModelInput
+---@field name string
+---@field backend "openai"|"ollama"
+---@field model string
+---@field url string
+---@field stream boolean
+
+---@class luma.UIConfig
+---@field position "float"|"left"|"right"|"top"|"bottom"
+---@field width number
+---@field height number
+---@field input_height number
+---@field border string
+---@field start_insert boolean
+
+---@class luma.KeyConfig
+---@field submit string
+---@field close string
+---@field cancel string
+---@field new string
+---@field resend string
+
+---@class luma.WebSearchConfig
+---@field api_key? luma.ApiKey
+---@field url string
+---@field max_results integer
+
+---@class luma.ConfigInput
+---@field model? string
+---@field prompt? string
+---@field stream? boolean
+---@field timeout? integer
+---@field max_tokens? integer
+---@field temperature? number
+---@field diagnostics? boolean
+---@field debug? boolean
+---@field max_context_bytes? integer
+---@field history? luma.HistoryConfig
+---@field ui? luma.UIConfig
+---@field tools? table<string, luma.ToolSpec|fun(ctx: luma.ToolContext)|false>
+---@field keys? luma.KeyConfig
+---@field models? table<string|integer, string|luma.ModelInput>
+---@field web_search? luma.WebSearchConfig
+
+---@class luma.Config
+---@field model string
+---@field prompt string
+---@field stream boolean
+---@field timeout integer
+---@field max_tokens? integer
+---@field temperature? number
+---@field diagnostics boolean
+---@field debug boolean
+---@field max_context_bytes integer
+---@field history luma.HistoryConfig
+---@field ui luma.UIConfig
+---@field tools table<string, luma.ToolSpec|fun(ctx: luma.ToolContext)|false>
+---@field keys luma.KeyConfig
+---@field models luma.ModelConfig[]
+---@field web_search luma.WebSearchConfig
+
 local M = {}
 
-local defaults = {
+local defaults = { ---@type luma.ConfigInput
   model = nil,
   prompt = "You are a helpful coding assistant.",
   stream = true,
@@ -46,8 +124,10 @@ local defaults = {
   },
 }
 
-local current
+local current ---@type luma.Config?
 
+---@param value table
+---@return boolean
 local function is_list(value)
   local count = 0
   for key in pairs(value) do
@@ -64,8 +144,10 @@ local function is_list(value)
   return true
 end
 
+---@param models table<string|integer, string|luma.ModelInput>
+---@return luma.ModelConfig[]
 local function normalize_models(models)
-  local ret = {}
+  local ret = {} ---@type luma.ModelConfig[]
   if type(models) ~= "table" then
     error("luma: models must be a table")
   end
@@ -107,6 +189,9 @@ local function normalize_models(models)
   return ret
 end
 
+---Merge defaults, normalize model entries, and validate the selected model.
+---@param opts? luma.ConfigInput
+---@return luma.Config
 function M.setup(opts)
   current = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
   current.models = normalize_models(current.models)
@@ -119,10 +204,13 @@ function M.setup(opts)
   return current
 end
 
+---@return luma.Config
 function M.get()
   return current or M.setup()
 end
 
+---@param name string
+---@return luma.ModelConfig?
 function M.model(name)
   local cfg = current or defaults
   local models = cfg.models

@@ -1,8 +1,30 @@
 local Win = require("win")
 
-local M = {}
-local chats = {}
+---@class luma.ToolChatSpec
+---@field system string
+---@field title? string
+---@field model? string
+---@field history? boolean
+---@field history_max? integer
 
+---@class luma.ToolChat
+---@field name string
+---@field spec luma.ToolChatSpec
+---@field model string
+---@field token integer
+---@field output luma.Window
+---@field input luma.Window
+---@field request? luma.RequestHandle
+---@field user? string
+---@field assistant? string
+---@field error? string
+---@field closing? boolean
+
+local M = {}
+local chats = {} ---@type table<string, luma.ToolChat>
+
+---@param chat luma.ToolChat
+---@return luma.HistoryOptions
 local function history_config(chat)
   local cfg = require("luma.config").get().history
   return {
@@ -12,6 +34,9 @@ local function history_config(chat)
   }
 end
 
+---@param chat luma.ToolChat
+---@param _ string?
+---@param assistant? string
 local function render(chat, _, assistant)
   local content = chat.error and ("Error: " .. chat.error) or assistant
   local lines = vim.split(content and content ~= "" and content or " ", "\n", { plain = true })
@@ -21,6 +46,10 @@ local function render(chat, _, assistant)
   chat.output:set_title((" %s · %s "):format(chat.spec.title or chat.name, chat.model))
 end
 
+---Persist only the current prompt and response, never previous tool output.
+---@param chat luma.ToolChat
+---@param user string
+---@param assistant string
 local function save(chat, user, assistant)
   if chat.spec.history == false then
     return
@@ -36,6 +65,7 @@ local function save(chat, user, assistant)
   }, history_config(chat))
 end
 
+---@param chat luma.ToolChat
 local function select_model(chat)
   vim.ui.select(require("luma.models").names(), {
     prompt = (chat.spec.title or chat.name) .. " model: ",
@@ -49,10 +79,13 @@ local function select_model(chat)
   end)
 end
 
+---@param chat luma.ToolChat
+---@return luma.HistoryEntry[]
 local function history_items(chat)
   return require("luma.history").list(history_config(chat))
 end
 
+---@param chat luma.ToolChat
 local function select_history(chat)
   local items = history_items(chat)
   if #items == 0 then
@@ -75,6 +108,8 @@ local function select_history(chat)
   end)
 end
 
+---Select and confirm one entry before invoking the non-interactive storage API.
+---@param chat luma.ToolChat
 local function delete_history(chat)
   local items = history_items(chat)
   if #items == 0 then
@@ -104,7 +139,9 @@ local function delete_history(chat)
   end)
 end
 
+---@param chat luma.ToolChat
 local function cancel(chat)
+  -- Invalidate captured generations before killing the request.
   chat.token = chat.token + 1
   if chat.request then
     chat.request.kill()
@@ -112,7 +149,9 @@ local function cancel(chat)
   end
 end
 
+---@param chat luma.ToolChat
 local function close(chat)
+  -- Linked windows can trigger each other's on_close callback.
   if chat.closing then
     return
   end
@@ -126,6 +165,7 @@ local function close(chat)
   end
 end
 
+---@param chat luma.ToolChat
 local function submit(chat)
   if chat.request then
     vim.notify("luma: a " .. chat.name .. " request is already running", vim.log.levels.WARN)
@@ -146,6 +186,7 @@ local function submit(chat)
   chat.error = nil
   vim.api.nvim_buf_set_lines(chat.input.buf, 0, -1, false, { "" })
   render(chat, user, "")
+  -- Ignore callbacks from a cancelled or replaced request generation.
   chat.token = chat.token + 1
   local token = chat.token
   chat.request = require("luma.request").start(model, {
@@ -182,6 +223,9 @@ local function submit(chat)
   })
 end
 
+---@param name string
+---@param spec luma.ToolChatSpec
+---@return luma.ToolChat
 local function create(name, spec)
   local cfg = require("luma.config").get()
   local outer_width = type(cfg.ui.width) == "number" and cfg.ui.width < 1 and math.floor(vim.o.columns * cfg.ui.width)
@@ -198,7 +242,7 @@ local function create(name, spec)
   local output_height = output_outer_height - border
   local row = math.max(0, math.floor((vim.o.lines - outer_height) / 2))
   local col = math.max(0, math.floor((vim.o.columns - outer_width) / 2))
-  local chat = {
+  local chat = { ---@type luma.ToolChat
     name = name,
     spec = spec,
     model = spec.model or cfg.model,
@@ -314,6 +358,9 @@ local function create(name, spec)
   return chat
 end
 
+---@param name string
+---@param spec luma.ToolChatSpec
+---@return luma.ToolChat
 function M.open(name, spec)
   if type(spec) ~= "table" or type(spec.system) ~= "string" then
     error("luma: tool chat requires a system prompt")
@@ -326,6 +373,7 @@ function M.open(name, spec)
   return create(name, spec)
 end
 
+---@param name string
 function M.close(name)
   if chats[name] then
     close(chats[name])

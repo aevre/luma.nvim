@@ -19,11 +19,21 @@ local Win = require("win")
 ---@field render_stream fun(delta: string, title?: string)
 ---@field focus_input fun()
 local M = {} ---@type luma.UI
-local sidebar = { models = {}, history = {} }
-local source_window
+---@class luma.SidebarState
+---@field models string[]
+---@field history luma.HistoryEntry[]
+
+---@class luma.SourceWindowState
+---@field win integer
+---@field cursorline boolean
+
+local sidebar = { models = {}, history = {} } ---@type luma.SidebarState
+local source_window ---@type luma.SourceWindowState?
+-- Prevent linked on_close callbacks from recursively hiding or destroying the group.
 local closing_group = false
+-- render_stream() may append only after render() created an assistant streaming tail.
 local stream_active = false
-local completion_items = {}
+local completion_items = {} ---@type string[]|luma.CompletionItem[]
 local highlight_namespace = vim.api.nvim_create_namespace("luma")
 local heading_highlights = {
   ["##  You"] = "LumaUser",
@@ -39,6 +49,9 @@ local window_highlight = table.concat({
   "WinSeparator:LumaSeparator",
 }, ",")
 
+---@param findstart integer
+---@param _ string
+---@return integer|string[]|luma.CompletionItem[]
 function M.complete(findstart, _)
   local cursor = vim.api.nvim_win_get_cursor(0)
   local start_col, items = require("luma.context").complete(vim.api.nvim_get_current_line(), cursor[2])
@@ -66,6 +79,7 @@ local function close_group_on_external_close()
   end)
 end
 
+---Restore options changed while the grouped UI was active.
 local function restore_source_window()
   if source_window and vim.api.nvim_win_is_valid(source_window.win) then
     vim.wo[source_window.win].cursorline = source_window.cursorline
@@ -109,6 +123,7 @@ local function toggle_help(self)
   })
 end
 
+---@param target "output"|"input"|"models"|"history"
 local function focus(target)
   local window = M[target] ---@type luma.Window?
   if window and window:valid() then
@@ -119,6 +134,7 @@ local function focus(target)
   end
 end
 
+---@return table<string, function>
 local function actions()
   local luma = require("luma")
   return {
@@ -157,6 +173,8 @@ local function actions()
   }
 end
 
+---@param input boolean
+---@return table
 local function keys(input)
   local cfg = require("luma.config").get().keys
   local ret = {
@@ -177,6 +195,9 @@ local function keys(input)
   return ret
 end
 
+---@param title string
+---@param input boolean
+---@return table
 local function common(title, input)
   return {
     show = false,
@@ -205,10 +226,15 @@ local function common(title, input)
   }
 end
 
+---@param value number
+---@param total integer
+---@return integer
 local function size(value, total)
   return type(value) == "number" and value < 1 and math.floor(total * value) or value
 end
 
+---@param win? luma.Window
+---@param lines string[]
 local function set_lines(win, lines)
   if not win or not win:buf_valid() then
     return
@@ -234,6 +260,8 @@ local function highlight_headings()
   end
 end
 
+---@param item luma.HistoryEntry
+---@return string
 local function history_label(item)
   for _, message in ipairs(item.messages or {}) do
     if message.role == "user" then
@@ -281,6 +309,14 @@ function M.refresh_sidebars()
   end
 end
 
+---@param title string
+---@param row integer
+---@param col integer
+---@param width integer
+---@param height integer
+---@param select fun(self: luma.Window)
+---@param delete? fun(self: luma.Window)
+---@return luma.Window
 local function sidebar_window(title, row, col, width, height, select, delete)
   local sidebar_keys = {
     ["<CR>"] = { select, desc = "Select" },
@@ -422,6 +458,7 @@ local function create_split()
   setup_completion()
 end
 
+---Show existing hidden windows when possible; create a new group otherwise.
 function M.open()
   if not M.valid() then
     dim_source_window()
@@ -446,6 +483,7 @@ function M.open()
   focus("input")
 end
 
+---Hide reusable windows and buffers while restoring the source window state.
 function M.hide()
   if closing_group then
     return
@@ -461,6 +499,7 @@ function M.hide()
   closing_group = false
 end
 
+---Destroy every coordinated window and clear all cached window objects.
 function M.destroy()
   if closing_group then
     return
@@ -485,6 +524,7 @@ function M.input_text()
   return M.input and M.input:text() or ""
 end
 
+---@param text? string
 function M.set_input(text)
   M.open()
   vim.api.nvim_buf_set_lines(M.input.buf, 0, -1, false, vim.split(text or "", "\n", { plain = true }))
@@ -496,6 +536,9 @@ function M.clear_input()
   end
 end
 
+---@param lines string[]
+---@param title? string
+---@param streaming? boolean
 function M.render(lines, title, streaming)
   if not M.output or not M.output:buf_valid() then
     return
@@ -514,6 +557,8 @@ function M.render(lines, title, streaming)
   end
 end
 
+---@param delta string
+---@param title? string
 function M.render_stream(delta, title)
   if not stream_active or not M.output or not M.output:buf_valid() then
     return

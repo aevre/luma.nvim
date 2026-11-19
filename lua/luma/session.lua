@@ -1,4 +1,17 @@
-local M = {
+---@alias luma.SessionStatus "idle"|"requesting"
+
+---@class luma.SessionState
+---@field id? string
+---@field model? string
+---@field messages luma.Message[]
+---@field status luma.SessionStatus
+---@field request? luma.RequestHandle
+---@field token integer
+---@field source_buf? integer
+---@field pending string
+---@field error? string
+
+local M = { ---@type luma.SessionState
   id = nil,
   model = nil,
   messages = {},
@@ -10,6 +23,7 @@ local M = {
   error = nil,
 }
 
+---@return luma.Config
 local function cfg()
   return require("luma.config").get()
 end
@@ -51,14 +65,16 @@ local function render()
   require("luma.ui").render(lines, title(), M.status == "requesting")
 end
 
+---@return luma.Message[]
 local function base_messages()
-  local messages = {}
+  local messages = {} ---@type luma.Message[]
   if cfg().prompt and cfg().prompt ~= "" then
     messages[1] = { role = "system", content = cfg().prompt }
   end
   return messages
 end
 
+---Cancel pending work and initialize an empty session from current configuration.
 function M.new()
   M.cancel()
   M.id = nil
@@ -73,6 +89,7 @@ function M.new()
   require("luma.ui").refresh_sidebars()
 end
 
+---@param saved luma.HistoryEntry
 function M.restore(saved)
   M.cancel()
   M.id = saved.id
@@ -85,6 +102,8 @@ function M.restore(saved)
   require("luma.ui").refresh_sidebars()
 end
 
+---@return string? id
+---@return string? error
 function M.save()
   local id, err = require("luma.history").save({
     id = M.id,
@@ -98,6 +117,7 @@ function M.save()
 end
 
 function M.cancel()
+  -- Incrementing the generation makes any late web or provider callback inert.
   M.token = M.token + 1
   if M.request then
     M.request.kill()
@@ -110,7 +130,9 @@ function M.cancel()
   end
 end
 
+---Stream the current message list and commit one assistant message on success.
 local function start_request()
+  -- Every request captures a generation token so replaced requests cannot mutate state.
   M.token = M.token + 1
   local token = M.token
   M.status = "requesting"
@@ -153,6 +175,8 @@ local function start_request()
   })
 end
 
+---Expand local context, optionally inject web results, then start the provider request.
+---@param text? string
 function M.submit(text)
   if M.status == "requesting" then
     vim.notify("luma: a request is already running", vim.log.levels.WARN)
@@ -198,6 +222,7 @@ function M.resend()
   end
 end
 
+---@param name string
 function M.set_model(name)
   if not require("luma.models").get(name) then
     vim.notify("luma: unknown model " .. tostring(name), vim.log.levels.ERROR)
@@ -209,6 +234,7 @@ function M.set_model(name)
   require("luma.ui").refresh_sidebars()
 end
 
+---@param text string
 function M.attach(text)
   local ui = require("luma.ui")
   ui.open()
@@ -222,10 +248,12 @@ function M.attach(text)
   vim.api.nvim_win_set_cursor(input.win, { #lines, 0 })
 end
 
+---@return string?
 function M.current_model()
   return M.model
 end
 
+---@return string?
 function M.current_id()
   return M.id
 end

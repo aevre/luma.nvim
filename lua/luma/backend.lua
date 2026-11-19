@@ -1,5 +1,20 @@
+---@alias luma.DeltaCallback fun(text: string)
+---@alias luma.StreamParser fun(chunk?: string, eof?: boolean): boolean?, string?
+
+---@class luma.RequestBody
+---@field model string
+---@field messages luma.Message[]
+---@field stream boolean
+---@field temperature? number
+---@field max_tokens? integer
+---@field options? { num_predict: integer }
+
 local M = {}
 
+---@param payload string
+---@param on_delta luma.DeltaCallback
+---@return boolean? done
+---@return string? error
 local function emit_openai(payload, on_delta)
   if payload == "[DONE]" then
     return true
@@ -20,6 +35,9 @@ local function emit_openai(payload, on_delta)
   return false
 end
 
+---Parse server-sent events, emitting one event only after its blank-line terminator.
+---@param on_delta luma.DeltaCallback
+---@return luma.StreamParser
 function M.openai_parser(on_delta)
   local state = { buffer = "", event = {} }
 
@@ -65,6 +83,9 @@ function M.openai_parser(on_delta)
   end
 end
 
+---Parse Ollama's newline-delimited JSON stream while preserving partial lines.
+---@param on_delta luma.DeltaCallback
+---@return luma.StreamParser
 function M.ollama_parser(on_delta)
   local buffer = ""
   local function process(line)
@@ -108,6 +129,10 @@ function M.ollama_parser(on_delta)
   end
 end
 
+---@param model luma.ModelConfig
+---@param messages luma.Message[]
+---@param cfg luma.Config
+---@return luma.RequestBody
 function M.body(model, messages, cfg)
   local body = {
     model = model.model,
@@ -127,6 +152,10 @@ function M.body(model, messages, cfg)
   return body
 end
 
+---@param model luma.ModelConfig
+---@param text string
+---@return string? content
+---@return string? error
 function M.parse_response(model, text)
   local ok, data = pcall(vim.json.decode, text)
   if not ok then

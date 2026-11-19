@@ -1,5 +1,24 @@
+---@class luma.SelectionRange
+---@field bufnr integer
+---@field start_line integer 1-based line number.
+---@field start_col integer 1-based byte column.
+---@field end_line integer 1-based line number.
+---@field end_col integer 0-based exclusive byte column for nvim_buf_get_text.
+
+---@class luma.ContextExpandOptions
+---@field bufnr? integer
+---@field max_context_bytes? integer
+---@field diagnostics? boolean
+
+---@class luma.CompletionItem
+---@field word string
+---@field abbr? string
+---@field menu? string
+
 local M = {}
 
+---@return string? text
+---@return luma.SelectionRange|string? selection_or_error
 local function selection()
   local bufnr = vim.api.nvim_get_current_buf()
   local first = vim.fn.getpos("'<")
@@ -23,6 +42,10 @@ local function selection()
     }
 end
 
+---@param path string
+---@param limit integer
+---@return string? content
+---@return string? error
 local function read_file(path, limit)
   local stat = vim.uv.fs_stat(path)
   if not stat then
@@ -43,11 +66,16 @@ local function read_file(path, limit)
   return data
 end
 
+---@param bufnr integer
+---@return string
 local function buffer_name(bufnr)
   local name = vim.api.nvim_buf_get_name(bufnr)
   return name ~= "" and vim.fn.fnamemodify(name, ":~:.") or ("[%d] [No Name]"):format(bufnr)
 end
 
+---@param value? string
+---@param fallback integer
+---@return integer?
 local function resolve_buffer(value, fallback)
   if not value or value == "" then
     return fallback
@@ -64,6 +92,8 @@ local function resolve_buffer(value, fallback)
   return nil
 end
 
+---@param bufnr integer
+---@return string
 local function diagnostics(bufnr)
   local lines = {}
   for _, diagnostic in ipairs(vim.diagnostic.get(bufnr)) do
@@ -72,10 +102,17 @@ local function diagnostics(bufnr)
   return table.concat(lines, "\n")
 end
 
+---@return string? text
+---@return luma.SelectionRange|string? selection_or_error
 function M.visual()
   return selection()
 end
 
+---Remove context directives and append their contents under one shared byte budget.
+---@param text string
+---@param opts? luma.ContextExpandOptions
+---@return string? expanded
+---@return string? error
 function M.expand(text, opts)
   opts = opts or {}
   local cfg = require("luma.config").get()
@@ -144,6 +181,10 @@ function M.expand(text, opts)
   return vim.trim(text) .. table.concat(additions)
 end
 
+---@param text string
+---@param cursor_col? integer
+---@return integer? start_col
+---@return string[]|luma.CompletionItem[]? items
 function M.complete(text, cursor_col)
   local before = text:sub(1, cursor_col or #text)
   local file = before:match("/file%s+([^%s]*)$")

@@ -1,8 +1,18 @@
 local backend = require("luma.backend")
 
+---@class luma.RequestCallbacks
+---@field on_delta luma.DeltaCallback
+---@field on_error fun(error: string)
+---@field on_done fun()
+
+---@class luma.RequestHandle
+---@field kill fun()
+
 local M = {}
 local next_id = 0
 
+---@param messages luma.Message[]
+---@return integer
 local function message_bytes(messages)
   local bytes = 0
   for _, message in ipairs(messages) do
@@ -11,6 +21,10 @@ local function message_bytes(messages)
   return bytes
 end
 
+---Resolve an API key callback, environment-variable name, or literal value.
+---@param value? luma.ApiKey
+---@return string? key
+---@return string? error
 local function api_key(value)
   if type(value) == "function" then
     local ok, result = pcall(value)
@@ -23,6 +37,9 @@ local function api_key(value)
   return env and env ~= "" and env or value
 end
 
+---@param model luma.ModelConfig
+---@param on_delta luma.DeltaCallback
+---@return luma.StreamParser
 local function parser_for(model, on_delta)
   if model.backend == "ollama" then
     return backend.ollama_parser(on_delta)
@@ -30,6 +47,11 @@ local function parser_for(model, on_delta)
   return backend.openai_parser(on_delta)
 end
 
+---Start curl and marshal all completion callbacks onto Neovim's main loop.
+---@param model luma.ModelConfig
+---@param messages luma.Message[]
+---@param opts luma.RequestCallbacks
+---@return luma.RequestHandle
 function M.start(model, messages, opts)
   opts = opts or {}
   local cfg = require("luma.config").get()
@@ -52,6 +74,7 @@ function M.start(model, messages, opts)
   local stderr = ""
   local parse_error
   local received = false
+  -- Once set by completion or cancellation, late process callbacks become inert.
   local done = false
   local key, key_err = api_key(model.api_key)
   if key_err then
@@ -111,6 +134,7 @@ function M.start(model, messages, opts)
       if not data or done then
         return
       end
+      -- Streaming responses are parsed incrementally; non-streaming output is buffered whole.
       if stream and parser then
         local _, err = parser(data, false)
         parse_error = parse_error or err
