@@ -4,12 +4,24 @@ local Win = require("win")
 ---@field cancel fun()
 ---@field kill fun()
 
+---@class luma.LoadingOptions
+---@field frames? string[]
+---@field text? string|false
+---@field row? integer
+---@field col? integer
+---@field border? string
+---@field zindex? integer
+---@field hl? string
+---@field border_hl? string
+---@field blend? integer
+---@field interval? integer
+
 ---@class luma.GenerateSpec
 ---@field system string
 ---@field user string
 ---@field title? string
 ---@field model? string
----@field loading? boolean|string|table
+---@field loading? boolean|string|luma.LoadingOptions
 ---@field window? table
 ---@field on_done? fun(result: string, output: luma.Window)
 ---@field on_error? fun(error: string)
@@ -24,13 +36,13 @@ local Win = require("win")
 ---@field system? string|fun(ctx: luma.ToolContext, input: string): string
 ---@field instruction? string|fun(ctx: luma.ToolContext, input: string): string
 ---@field model? string
----@field loading? boolean|string|table
+---@field loading? boolean|string|luma.LoadingOptions
 ---@field window? table
 ---@field history? boolean
 ---@field history_max? integer
 ---@field on_done? fun(result: string, output: luma.Window)
 ---@field on_error? fun(error: string)
----@field run? fun(ctx: luma.ToolContext)
+---@field run? fun(ctx: luma.ToolContext): unknown?
 
 ---@class luma.ToolContext
 ---@field name string
@@ -41,7 +53,7 @@ local Win = require("win")
 ---@field generate fun(spec: luma.GenerateSpec): luma.TaskHandle
 ---@field chat fun(spec: luma.ToolChatSpec): luma.ToolChat
 ---@field cancel fun(): boolean
----@field loading fun(opts?: table): fun()
+---@field loading fun(opts?: boolean|luma.LoadingOptions): fun()
 ---@field panel fun(title: string, keys?: table, opts?: table): luma.Window
 ---@field strip_fence fun(text: string): string
 
@@ -151,7 +163,7 @@ function M.source(has_range)
   return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"), { bufnr = bufnr }
 end
 
----@param opts? table
+---@param opts? boolean|luma.LoadingOptions
 ---@return fun() cleanup
 local function spinner(opts)
   if opts == false then
@@ -231,6 +243,26 @@ local function result_size(text)
 end
 
 ---@param title string
+---@return integer
+local function title_width(title)
+  return math.min(vim.api.nvim_strwidth(vim.trim(title)) + 4, math.max(1, vim.o.columns - 4))
+end
+
+---@param width number
+---@return integer
+local function resolved_width(width)
+  return width > 0 and width <= 1 and math.floor(vim.o.columns * width) or math.floor(width)
+end
+
+---@param width number
+---@param title string
+---@return number
+local function width_for_title(width, title)
+  local required = title_width(title)
+  return required > resolved_width(width) and required or width
+end
+
+---@param title string
 ---@param keys? table
 ---@param opts? table
 ---@return luma.Window
@@ -274,7 +306,7 @@ function M.panel(title, keys, opts)
       desc = "Close",
     },
   })
-  return Win(vim.tbl_deep_extend("force", {
+  local panel_opts = vim.tbl_deep_extend("force", {
     position = "float",
     width = 0.7,
     height = 0.7,
@@ -290,7 +322,22 @@ function M.panel(title, keys, opts)
     },
     keys = mappings,
     footer_keys = { "?", "q" },
-  }, opts or {}))
+  }, opts or {})
+  panel_opts.width = width_for_title(panel_opts.width, title)
+  local panel = Win(panel_opts)
+  local set_title = panel.set_title
+  panel.set_title = function(self, next_title, pos)
+    local current_width = self.opts.width
+    if type(next_title) == "string" and type(current_width) == "number" then
+      local width = width_for_title(current_width, next_title)
+      if width ~= self.opts.width then
+        self.opts.width = width
+        self:update()
+      end
+    end
+    set_title(self, next_title, pos)
+  end
+  return panel
 end
 
 ---Run one generated-result request and persist it only after successful completion.
@@ -303,7 +350,10 @@ function M.generate(spec)
   if type(spec.system) ~= "string" or type(spec.user) ~= "string" then
     error("luma: generate requires string system and user fields")
   end
-  local loading = type(spec.loading) == "string" and { text = spec.loading } or spec.loading
+  local loading = spec.loading
+  if type(loading) == "string" then
+    loading = { text = loading }
+  end
   local result = ""
   local bufnr = vim.api.nvim_get_current_buf()
   next_request_id = next_request_id + 1
@@ -415,8 +465,14 @@ local function declarative(spec, ctx)
   if not input or input == "" then
     return
   end
-  local system = type(spec.system) == "function" and spec.system(ctx, input) or spec.system
-  local instruction = type(spec.instruction) == "function" and spec.instruction(ctx, input) or spec.instruction
+  local system = spec.system
+  if type(system) == "function" then
+    system = system(ctx, input)
+  end
+  local instruction = spec.instruction
+  if type(instruction) == "function" then
+    instruction = instruction(ctx, input)
+  end
   local user = instruction and (instruction .. "\n\n" .. input) or input
   return M.generate({
     title = spec.title or (" " .. ctx.name .. "… "),
@@ -434,7 +490,7 @@ local function declarative(spec, ctx)
 end
 
 ---@param name string
----@param spec luma.ToolSpec|fun(ctx: luma.ToolContext)
+---@param spec luma.ToolSpec|fun(ctx: luma.ToolContext): unknown?
 ---@return table
 function M.register(name, spec)
   if type(name) ~= "string" or name == "" then
@@ -468,7 +524,7 @@ function M.names()
   return names
 end
 
----@param tools? table<string, luma.ToolSpec|fun(ctx: luma.ToolContext)|false>
+---@param tools? table<string, luma.ToolSpec|fun(ctx: luma.ToolContext): unknown?|false>
 function M.setup(tools)
   M.cancel()
   registry = {}
@@ -485,7 +541,7 @@ M._spinner = spinner
 
 ---@param name string
 ---@param has_range? boolean
----@return unknown
+---@return unknown?
 function M.run(name, has_range)
   local spec = registry[name]
   if not spec then

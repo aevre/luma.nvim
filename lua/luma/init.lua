@@ -1,17 +1,5 @@
 ---@class luma.API
----@field setup fun(opts?: luma.ConfigInput): luma.API
----@field toggle fun()
----@field submit fun(text?: string)
----@field cancel fun()
----@field new fun()
----@field resend fun()
----@field history fun(opts?: luma.HistoryOptions)
----@field history_delete fun(id: string, opts?: luma.HistoryOptions): boolean?, string?
----@field history_clear fun(opts?: luma.HistoryOptions): luma.HistoryClearResult?, string?
----@field model fun(name?: string)
----@field tool fun(name: string, has_range?: boolean)
-
-local M = {} ---@type luma.API
+local M = {}
 local bootstrapped = false
 
 local highlights = {
@@ -165,7 +153,7 @@ function M.history(opts)
     end,
   }, function(scope)
     if scope then
-      select_history(scope)
+      select_history({ scope = scope.scope, tool = scope.tool })
     end
   end)
 end

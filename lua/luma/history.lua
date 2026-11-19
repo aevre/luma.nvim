@@ -12,9 +12,12 @@
 ---@class luma.HistoryEntry: luma.HistoryEntryInput
 ---@field id string
 
----@class luma.HistoryConfig
----@field path string
+---@class luma.HistoryConfigInput
+---@field path? string
 ---@field max? integer
+
+---@class luma.HistoryConfig: luma.HistoryConfigInput
+---@field path string
 
 ---@class luma.HistoryOptions
 ---@field scope? "chat"|"tool"|"all"
@@ -80,7 +83,7 @@ end
 ---@return string? error
 local function config(opts)
   if opts and opts.path then
-    return opts
+    return { path = opts.path, max = opts.max }
   end
   local cfg = require("luma.config").get().history
   if not opts or not opts.scope or opts.scope == "chat" then
@@ -262,7 +265,7 @@ function M.clear(opts)
     if ok then
       result.deleted = result.deleted + 1
     else
-      result.failed[#result.failed + 1] = { id = id, error = err }
+      result.failed[#result.failed + 1] = { id = id, error = err or "failed to delete history" }
     end
   end
   return result

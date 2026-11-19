@@ -185,7 +185,7 @@ function M.start(model, messages, opts)
             elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
             error = err,
           })
-          opts.on_error(err)
+          opts.on_error(err or "provider response could not be parsed")
           return
         end
         received = text:find("%S") ~= nil

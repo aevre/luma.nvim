@@ -1,5 +1,6 @@
-LUA_FILES := $(shell find lua plugin tests -name '*.lua')
+LUA_FILES := $(shell find lua plugin tests examples -name '*.lua')
 NVIM_BIN ?= nvim
+LUA_LS ?= lua-language-server
 WIN_NVIM ?= /home/immortal/Projects/lib/win.nvim
 ANIMATE_NVIM ?= /home/immortal/Projects/lib/animate.nvim
 
@@ -13,6 +14,9 @@ fmt-check:
 
 lint:
 	selene $(LUA_FILES)
+	@log=$$(mktemp -d); trap 'rm -rf "$$log"' EXIT; \
+		$(LUA_LS) --check='$(CURDIR)' --checklevel=Warning --check_format=pretty \
+		--configpath='$(CURDIR)/.luarc.json.example' --logpath="$$log"
 
 check: fmt-check lint test
 

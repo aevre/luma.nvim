@@ -11,7 +11,8 @@
 ---@field pending string
 ---@field error? string
 
-local M = { ---@type luma.SessionState
+---@class luma.Session: luma.SessionState
+local M = {
   id = nil,
   model = nil,
   messages = {},
@@ -119,8 +120,9 @@ end
 function M.cancel()
   -- Incrementing the generation makes any late web or provider callback inert.
   M.token = M.token + 1
-  if M.request then
-    M.request.kill()
+  local request = M.request ---@type luma.RequestHandle?
+  if request then
+    request.kill()
   end
   M.request = nil
   if M.status == "requesting" then
@@ -140,6 +142,13 @@ local function start_request()
   M.error = nil
   render()
   local model = require("luma.models").get(M.model)
+  if not model then
+    M.status = "idle"
+    M.error = "unknown model " .. tostring(M.model)
+    render()
+    vim.notify("luma: " .. M.error, vim.log.levels.ERROR)
+    return
+  end
   M.request = require("luma.request").start(model, vim.deepcopy(M.messages), {
     on_delta = function(text)
       if token ~= M.token then

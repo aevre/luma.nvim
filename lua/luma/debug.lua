@@ -13,10 +13,11 @@ function M.log(event, fields)
     return
   end
   local parts = { "luma debug:", event }
-  local keys = vim.tbl_keys(fields or {})
+  local values = fields or {}
+  local keys = vim.tbl_keys(values)
   table.sort(keys)
   for _, key in ipairs(keys) do
-    local value = fields[key]
+    local value = values[key]
     if value ~= nil then
       parts[#parts + 1] = ("%s=%s"):format(key, tostring(value):gsub("%s+", " "))
     end

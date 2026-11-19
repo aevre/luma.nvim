@@ -242,12 +242,13 @@ local function create(name, spec)
   local output_height = output_outer_height - border
   local row = math.max(0, math.floor((vim.o.lines - outer_height) / 2))
   local col = math.max(0, math.floor((vim.o.columns - outer_width) / 2))
-  local chat = { ---@type luma.ToolChat
+  local chat = {
     name = name,
     spec = spec,
     model = spec.model or cfg.model,
     token = 0,
   }
+  ---@cast chat luma.ToolChat
   local actions = {
     submit = function()
       submit(chat)

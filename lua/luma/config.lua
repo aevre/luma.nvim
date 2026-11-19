@@ -22,7 +22,15 @@
 ---@field url string
 ---@field stream boolean
 
----@class luma.UIConfig
+---@class luma.UIInput
+---@field position? "float"|"left"|"right"|"top"|"bottom"
+---@field width? number
+---@field height? number
+---@field input_height? number
+---@field border? string
+---@field start_insert? boolean
+
+---@class luma.UIConfig: luma.UIInput
 ---@field position "float"|"left"|"right"|"top"|"bottom"
 ---@field width number
 ---@field height number
@@ -30,15 +38,26 @@
 ---@field border string
 ---@field start_insert boolean
 
----@class luma.KeyConfig
+---@class luma.KeyInput
+---@field submit? string
+---@field close? string
+---@field cancel? string
+---@field new? string
+---@field resend? string
+
+---@class luma.KeyConfig: luma.KeyInput
 ---@field submit string
 ---@field close string
 ---@field cancel string
 ---@field new string
 ---@field resend string
 
----@class luma.WebSearchConfig
+---@class luma.WebSearchInput
 ---@field api_key? luma.ApiKey
+---@field url? string
+---@field max_results? integer
+
+---@class luma.WebSearchConfig: luma.WebSearchInput
 ---@field url string
 ---@field max_results integer
 
@@ -52,12 +71,12 @@
 ---@field diagnostics? boolean
 ---@field debug? boolean
 ---@field max_context_bytes? integer
----@field history? luma.HistoryConfig
----@field ui? luma.UIConfig
+---@field history? luma.HistoryConfigInput
+---@field ui? luma.UIInput
 ---@field tools? table<string, luma.ToolSpec|fun(ctx: luma.ToolContext)|false>
----@field keys? luma.KeyConfig
+---@field keys? luma.KeyInput
 ---@field models? table<string|integer, string|luma.ModelInput>
----@field web_search? luma.WebSearchConfig
+---@field web_search? luma.WebSearchInput
 
 ---@class luma.Config
 ---@field model string
@@ -154,12 +173,13 @@ local function normalize_models(models)
 
   local list = is_list(models)
   for key, value in pairs(models) do
-    local model
+    local model ---@type luma.ModelInput
+    local keyed_name = type(key) == "string" and key or nil
     if type(value) == "string" then
-      model = { name = list and value or key, model = value }
+      model = { name = list and value or keyed_name, model = value }
     elseif type(value) == "table" then
       model = vim.deepcopy(value)
-      model.name = model.name or (not list and key or model.model)
+      model.name = model.name or (not list and keyed_name or model.model)
     else
       error("luma: each model must be a string or table")
     end
@@ -177,6 +197,7 @@ local function normalize_models(models)
     else
       model.url = model.url or "http://127.0.0.1:11434/api/chat"
     end
+    ---@cast model luma.ModelConfig
     ret[#ret + 1] = model
   end
 
@@ -193,11 +214,13 @@ end
 ---@param opts? luma.ConfigInput
 ---@return luma.Config
 function M.setup(opts)
-  current = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
-  current.models = normalize_models(current.models)
-  if current.model == nil then
-    current.model = current.models[1].name
+  local merged = vim.tbl_deep_extend("force", {}, vim.deepcopy(defaults), opts or {})
+  merged.models = normalize_models(assert(merged.models))
+  if merged.model == nil then
+    merged.model = merged.models[1].name
   end
+  ---@cast merged luma.Config
+  current = merged
   if not M.model(current.model) then
     error("luma: unknown default model " .. tostring(current.model))
   end
@@ -212,11 +235,7 @@ end
 ---@param name string
 ---@return luma.ModelConfig?
 function M.model(name)
-  local cfg = current or defaults
-  local models = cfg.models
-  if models == defaults.models then
-    models = normalize_models(models)
-  end
+  local models = current and current.models or normalize_models(assert(defaults.models))
   for _, model in ipairs(models) do
     if model.name == name then
       return model

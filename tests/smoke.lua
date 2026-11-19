@@ -78,7 +78,13 @@ local function test_empty_response()
     end)
     return { kill = function() end }
   end)
-  require("luma.request").start({ backend = "ollama", model = "test", url = "http://test", stream = false }, {}, {
+  require("luma.request").start({
+    name = "test",
+    backend = "ollama",
+    model = "test",
+    url = "http://test",
+    stream = false,
+  }, {}, {
     on_delta = function() end,
     on_error = function(err)
       error_message = err
@@ -110,7 +116,13 @@ local function test_large_request_body_uses_stdin()
     end)
     return { kill = function() end }
   end)
-  require("luma.request").start({ backend = "ollama", model = "test", url = "http://test", stream = false }, {
+  require("luma.request").start({
+    name = "test",
+    backend = "ollama",
+    model = "test",
+    url = "http://test",
+    stream = false,
+  }, {
     { role = "system", content = "test" },
     { role = "user", content = prompt },
   }, {
@@ -138,13 +150,13 @@ local function test_visual_selection()
   vim.fn.setpos("'<", { 0, 1, 5, 0 })
   vim.fn.setpos("'>", { 0, 1, 9, 0 })
   local text, range = require("luma.context").visual()
-  assert(text == "model")
+  assert(text == "model" and type(range) == "table")
   assert(range.start_line == 1 and range.start_col == 5)
   assert(range.end_line == 1 and range.end_col == 9)
   vim.fn.setpos("'<", { 0, 1, 1, 0 })
   vim.fn.setpos("'>", { 0, 1, 100, 0 })
   text, range = require("luma.context").visual()
-  assert(text == "    model = spec.model,")
+  assert(text == "    model = spec.model," and type(range) == "table")
   assert(range.end_col == #"    model = spec.model,")
   vim.fn.setpos("'<", { 0, 1, 13, 0 })
   vim.fn.setpos("'>", { 0, 2, 4, 0 })
@@ -164,13 +176,13 @@ local function test_context_completion()
   local file = dir .. "/example.lua"
   vim.fn.writefile({ "return true" }, file)
   start_col, items = context.complete("/file " .. dir .. "/exa", #(dir .. "/exa") + 6)
-  assert(start_col and vim.tbl_contains(items, file))
+  assert(start_col and items and vim.tbl_contains(items, file))
 
   local target = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_buf_set_name(target, dir .. "/target.lua")
   vim.api.nvim_buf_set_lines(target, 0, -1, false, { "target buffer" })
   start_col, items = context.complete("/buffer tar", 11)
-  assert(start_col == 9)
+  assert(start_col == 9 and items)
   local match = vim.tbl_filter(function(item)
     return item.word == tostring(target)
   end, items)
@@ -232,8 +244,9 @@ local function test_tools_registry()
     models = { { name = "only", backend = "ollama", model = "tiny" } },
   })
   local tools = require("luma.tools")
-  local ok, err = pcall(tools.generate, { title = "invalid" })
-  assert(not ok and err:match("requires string system and user fields"))
+  local invalid_generate = { title = "invalid" } ---@type any
+  local ok, err = pcall(tools.generate, invalid_generate)
+  assert(not ok and type(err) == "string" and err:match("requires string system and user fields"))
   local request = require("luma.request")
   local original_start = request.start
   local received
@@ -321,6 +334,7 @@ local function test_tools_registry()
     generated = spec
     return spec
   end)
+  local invalid_tool = { source = "unknown", system = "invalid" } ---@type any
   tools.setup({
     auto = {
       system = "auto system",
@@ -337,10 +351,7 @@ local function test_tools_registry()
       input_title = "Question: ",
       system = "prompt system",
     },
-    invalid = {
-      source = "unknown",
-      system = "invalid",
-    },
+    invalid = invalid_tool,
   })
   tools.run("auto", false)
   assert(generated.system == "auto system")
@@ -376,7 +387,7 @@ local function test_tools_registry()
       input_title = "Question: ",
       system = "prompt system",
     },
-    invalid = { source = "unknown", system = "invalid" },
+    invalid = invalid_tool,
   })
   tools.run("buffer", true)
   assert(generated.system == "buffer system: one\ntwo\nthree")
@@ -402,7 +413,16 @@ local function test_tools_registry()
   assert(table.concat(footer):find("Help", 1, true))
   assert(table.concat(footer):find("Close", 1, true))
   assert(vim.wo[panel.win].winhighlight:find("FloatBorder:LumaResultBorder", 1, true))
+  local initial_width = vim.api.nvim_win_get_width(panel.win)
+  local dynamic_title = " Review generated message · c commit staged changes · y copy message "
+  panel:set_title(dynamic_title)
+  assert(vim.api.nvim_win_get_width(panel.win) >= vim.api.nvim_strwidth(vim.trim(dynamic_title)) + 4)
+  assert(vim.api.nvim_win_get_width(panel.win) > initial_width)
   panel:destroy()
+  local initial_title = " Review generated script · r execute with Bash · y copy script "
+  local titled_panel = tools.panel(initial_title, nil, { width = 36 })
+  assert(vim.api.nvim_win_get_width(titled_panel.win) >= vim.api.nvim_strwidth(vim.trim(initial_title)) + 4)
+  titled_panel:destroy()
   local small = tools._result_size("short")
   local large = tools._result_size(string.rep("x", 1000) .. "\n" .. string.rep("line\n", 100))
   assert(small.width == 36 and small.height == 6)
