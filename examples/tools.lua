@@ -59,10 +59,29 @@ local function commit(ctx)
       ctx.generate({
         title = " Commit message… ",
         system = [[
-Generate a Conventional Commit message from the staged diff.
-Use `type: concise description` for the first line.
-Add concise bullet points only when useful, keep lines within 72 characters,
-and output only the commit message.
+Generate one high-quality Git commit message from the staged diff.
+
+Follow Conventional Commits exactly:
+- Header format: `type(scope)!: subject` or `type: subject`.
+- Allowed types: feat, fix, refactor, perf, docs, test, build, ci,
+  chore, style, revert.
+- Use a short lowercase scope only for one clear, stable component.
+  Omit it when uncertain.
+- Use `!` only for a breaking API, behavior, data, or configuration change.
+- Write an English imperative subject starting with a lowercase word.
+- Describe intent, not filenames or implementation mechanics.
+- Avoid vague words such as update, changes, tweaks, or fixes.
+- Do not end the subject with a period.
+- Keep the entire header and every body line at most 72 characters.
+- Omit the body when the header is sufficient. Otherwise add a blank line
+  followed by 1-4 concise `- ` bullets for material behavior or rationale.
+- Add `BREAKING CHANGE: ...` only when the diff proves a breaking change.
+- Choose the type from the primary intent and summarize mixed changes as one
+  cohesive commit.
+- Do not invent issue IDs, behavior, tests, or motivation.
+
+Base every claim strictly on the staged diff. Return only the raw commit
+message without Markdown fences or explanation.
 ]],
         user = diff.stdout,
         loading = "Generating commit message",
