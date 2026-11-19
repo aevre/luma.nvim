@@ -47,7 +47,7 @@ cp .luarc.json.example .luarc.json
 "${workspaceFolder}/../animate.nvim/lua"
 ```
 
-`.luarc.json` 只保留在本地。它已被 Git 忽略，不应提交。仓库 lint 命令使用 `.luarc.json.example`；使用 `make lint` 检查共享配置，使用 `make check` 运行完整项目检查。
+`.luarc.json` 只保留在本地。它已被 Git 忽略，不应提交。`make lint` 根据 `.luarc.json.example` 创建临时 LuaLS 配置，并注入 `WIN_NVIM` 和 `ANIMATE_NVIM`；展开后的本机路径不会写入受版本控制的文件。使用 `make check` 运行完整项目检查。
 
 ## 注释
 
@@ -88,7 +88,7 @@ git diff --check
 `make check` 会运行 Stylua、Selene、LuaLS 和 Headless smoke tests。需要时可以覆盖本地依赖路径：
 
 ```sh
-make test WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim
+make check WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim
 ```
 
 Headless 测试无法验证终端布局、动画、选择器体验和真实 Provider。修改 UI 后需要手工检查；测试带副作用的示例时应使用无害命令。

@@ -4,12 +4,7 @@
   "runtime.path": ["?.lua", "?/init.lua"],
   "diagnostics.globals": ["vim", "indent_type", "indent_width", "column_width"],
   "workspace.checkThirdParty": false,
-  "workspace.library": [
-    "${3rd}/luv/library",
-    "${workspaceFolder}/lua",
-    "/usr/share/nvim/runtime/lua",
-    "$VIMRUNTIME",
-  ],
+  "workspace.library": ["${3rd}/luv/library", "${workspaceFolder}/lua", "$VIMRUNTIME"],
   "telemetry.enable": false,
   "diagnostics.disable": []
 }

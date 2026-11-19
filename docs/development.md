@@ -47,7 +47,7 @@ Edit `workspace.library` in the copied file when `win.nvim`, `animate.nvim`, Neo
 "${workspaceFolder}/../animate.nvim/lua"
 ```
 
-Keep `.luarc.json` local. It is ignored by Git and must not be committed. The repository lint command uses `.luarc.json.example`; use `make lint` to check the shared configuration and `make check` for the complete project check.
+Keep `.luarc.json` local. It is ignored by Git and must not be committed. `make lint` creates a temporary LuaLS configuration from `.luarc.json.example` and injects `WIN_NVIM` and `ANIMATE_NVIM`; expanded machine paths are never written to a tracked file. Use `make check` for the complete project check.
 
 ## Comments
 
@@ -88,7 +88,7 @@ git diff --check
 `make check` runs Stylua, Selene, LuaLS, and the headless smoke suite. Set local dependency paths when needed:
 
 ```sh
-make test WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim
+make check WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim
 ```
 
 Headless tests do not verify terminal geometry, animation, picker usability, or live provider behavior. Inspect changed UI surfaces manually and use harmless commands when testing side-effect examples.

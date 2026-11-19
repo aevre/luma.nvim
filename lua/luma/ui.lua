@@ -1,5 +1,8 @@
 local Win = require("win")
 
+---@class win.Config
+---@field footer? [string, string][]
+
 ---@alias luma.Window win
 
 ---@class luma.UI

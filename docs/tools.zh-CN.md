@@ -79,6 +79,7 @@ review = {
 | `model` | 工具模型覆盖。 |
 | `loading` | `false`、标签字符串或 Loading 窗口选项。 |
 | `window` | 传给 win.nvim 的结果窗口选项。 |
+| `editable` | 设置为 `true` 时允许编辑结果 Buffer。 |
 | `history` | 设置为 `false` 时不保存工具历史。 |
 | `history_max` | 工具历史保留数量。 |
 | `on_done` | 接收 `(result, output)`。 |
@@ -149,7 +150,7 @@ local handle = ctx.generate({
 })
 ```
 
-返回的 handle 提供 `cancel()` 和 `kill()`，重复调用也不会产生额外影响。
+返回的 handle 提供 `cancel()` 和 `kill()`，重复调用也不会产生额外影响。结果 Buffer 默认只读；设置 `editable = true` 后可以编辑。`on_done` 中的操作可以调用 `output:get_text()`，读取用户修改后的当前内容。
 
 注册工具中的成功请求默认保存历史。失败和取消的请求不保存。Luma 会拒绝空结果，并在调用 `on_done` 前去掉一层 Markdown 代码围栏。
 
@@ -163,6 +164,7 @@ local handle = ctx.generate({
 | `model` | 否 | 单次请求的模型覆盖。 |
 | `loading` | 否 | Loading 标签或选项；`false` 表示关闭。 |
 | `window` | 否 | 结果窗口选项。 |
+| `editable` | 否 | 设置为 `true` 时允许编辑结果 Buffer。 |
 | `on_done` | 否 | 接收 `(result, output)`。 |
 | `on_error` | 否 | 接收错误字符串。 |
 | `history` | 否 | 设置为 `false` 时不保存历史。 |

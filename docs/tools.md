@@ -79,6 +79,7 @@ review = {
 | `model` | Tool model override. |
 | `loading` | `false`, a label string, or loading-window options. |
 | `window` | Result-window options passed to win.nvim. |
+| `editable` | Set `true` to allow editing the result buffer. |
 | `history` | Set `false` to disable tool history. |
 | `history_max` | Tool history retention override. |
 | `on_done` | Called with `(result, output)`. |
@@ -149,7 +150,7 @@ local handle = ctx.generate({
 })
 ```
 
-The returned handle provides `cancel()` and `kill()`. Both are safe to call more than once.
+The returned handle provides `cancel()` and `kill()`. Both are safe to call more than once. Result buffers are read-only unless `editable = true`. Use `output:get_text()` in `on_done` actions to read the current text after user edits.
 
 Successful registered-tool requests are saved unless history is disabled. Failed and cancelled requests are not saved. Luma rejects blank responses and removes one surrounding Markdown code fence before calling `on_done`.
 
@@ -163,6 +164,7 @@ Successful registered-tool requests are saved unless history is disabled. Failed
 | `model` | no | Per-request model override. |
 | `loading` | no | Loading label or options; `false` disables it. |
 | `window` | no | Result-window options. |
+| `editable` | no | Set `true` to allow editing the result buffer. |
 | `on_done` | no | Receives `(result, output)`. |
 | `on_error` | no | Receives the error string. |
 | `history` | no | Set `false` to skip history. |

@@ -1,5 +1,8 @@
 local Win = require("win")
 
+---@class luma.ResultWindow: win
+---@field get_text fun(self: luma.ResultWindow): string
+
 ---@class luma.TaskHandle
 ---@field cancel fun()
 ---@field kill fun()
@@ -23,7 +26,8 @@ local Win = require("win")
 ---@field model? string
 ---@field loading? boolean|string|luma.LoadingOptions
 ---@field window? table
----@field on_done? fun(result: string, output: luma.Window)
+---@field editable? boolean Whether the generated result buffer is editable.
+---@field on_done? fun(result: string, output: luma.ResultWindow)
 ---@field on_error? fun(error: string)
 ---@field tool? string Internal registered-tool identity used for isolated history.
 ---@field history? boolean
@@ -38,9 +42,10 @@ local Win = require("win")
 ---@field model? string
 ---@field loading? boolean|string|luma.LoadingOptions
 ---@field window? table
+---@field editable? boolean Whether the generated result buffer is editable.
 ---@field history? boolean
 ---@field history_max? integer
----@field on_done? fun(result: string, output: luma.Window)
+---@field on_done? fun(result: string, output: luma.ResultWindow)
 ---@field on_error? fun(error: string)
 ---@field run? fun(ctx: luma.ToolContext): unknown?
 
@@ -265,7 +270,7 @@ end
 ---@param title string
 ---@param keys? table
 ---@param opts? table
----@return luma.Window
+---@return luma.ResultWindow
 function M.panel(title, keys, opts)
   keys = keys or {}
   local function close_or(action, self)
@@ -325,6 +330,14 @@ function M.panel(title, keys, opts)
   }, opts or {})
   panel_opts.width = width_for_title(panel_opts.width, title)
   local panel = Win(panel_opts)
+  ---@cast panel luma.ResultWindow
+  ---Return the current result, including edits made in the panel.
+  panel.get_text = function(self)
+    if not self:buf_valid() then
+      return ""
+    end
+    return table.concat(vim.api.nvim_buf_get_lines(self.buf, 0, -1, false), "\n")
+  end
   local set_title = panel.set_title
   panel.set_title = function(self, next_title, pos)
     local current_width = self.opts.width
@@ -424,7 +437,7 @@ function M.generate(spec)
       }, vim.tbl_deep_extend("force", dimensions, spec.window or {}))
       vim.bo[output.buf].modifiable = true
       vim.api.nvim_buf_set_lines(output.buf, 0, -1, false, vim.split(result, "\n", { plain = true }))
-      vim.bo[output.buf].modifiable = false
+      vim.bo[output.buf].modifiable = spec.editable == true
       if spec.on_done then
         spec.on_done(result, output)
       end
@@ -482,6 +495,7 @@ local function declarative(spec, ctx)
     on_error = spec.on_error,
     loading = spec.loading,
     window = spec.window,
+    editable = spec.editable,
     model = spec.model,
     tool = ctx.name,
     history = spec.history,

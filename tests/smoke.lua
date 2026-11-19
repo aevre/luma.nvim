@@ -1,6 +1,6 @@
 local root = vim.fn.getcwd()
-local win_dir = vim.env.WIN_NVIM or "/home/immortal/Projects/lib/win.nvim"
-local animate_dir = vim.env.ANIMATE_NVIM or "/home/immortal/Projects/lib/animate.nvim"
+local win_dir = vim.env.WIN_NVIM or vim.fs.normalize(root .. "/../win.nvim")
+local animate_dir = vim.env.ANIMATE_NVIM or vim.fs.normalize(root .. "/../animate.nvim")
 vim.opt.runtimepath:prepend(root)
 vim.opt.runtimepath:prepend(win_dir)
 vim.opt.runtimepath:prepend(animate_dir)
@@ -279,6 +279,7 @@ local function test_tools_registry()
     user = "remember me",
     model = "only",
     tool = "translate",
+    editable = true,
     loading = false,
     on_done = function(_, output)
       history_panel = output
@@ -289,6 +290,9 @@ local function test_tools_registry()
   local saved = require("luma.history").list({ scope = "tool", tool = "translate" })
   assert(#saved == 1 and saved[1].kind == "generate" and saved[1].tool == "translate")
   assert(saved[1].messages[1].content == "remember me" and saved[1].messages[2].content == "translated")
+  assert(vim.bo[history_panel.buf].modifiable)
+  vim.api.nvim_buf_set_lines(history_panel.buf, 0, -1, false, { "edited result" })
+  assert(history_panel:get_text() == "edited result")
   history_panel:destroy()
   tools.generate({
     system = "system",
@@ -304,6 +308,8 @@ local function test_tools_registry()
   callbacks.on_delta("not saved")
   callbacks.on_done()
   assert(#require("luma.history").list({ scope = "tool", tool = "translate" }) == 1)
+  assert(not vim.bo[history_panel.buf].modifiable)
+  assert(history_panel:get_text() == "not saved")
   history_panel:destroy()
   vim.api.nvim_set_current_buf(original_buf)
   rawset(request, "start", original_start)

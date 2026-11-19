@@ -85,11 +85,13 @@ message without Markdown fences or explanation.
 ]],
         user = diff.stdout,
         loading = "Generating commit message",
-        on_done = function(message, output)
+        editable = true,
+        on_done = function(_, output)
           output:set_title(" Review generated message · c commit staged changes · y copy message ")
           -- Commit only after the user reviews the generated message and presses c.
           vim.keymap.set("n", "c", function()
-            vim.system({ "git", "commit", "-F", "-" }, { text = true, stdin = message }, function(result)
+            local commit_message = output:get_text()
+            vim.system({ "git", "commit", "-F", "-" }, { text = true, stdin = commit_message }, function(result)
               vim.schedule(function()
                 if result.code ~= 0 then
                   vim.notify("luma: " .. vim.trim(result.stderr), vim.log.levels.ERROR)
@@ -105,7 +107,7 @@ message without Markdown fences or explanation.
             end)
           end, { buffer = output.buf, desc = "Commit staged changes using the generated message" })
           vim.keymap.set("n", "y", function()
-            vim.fn.setreg("+", message)
+            vim.fn.setreg("+", output:get_text())
             vim.notify("luma: commit message copied")
           end, { buffer = output.buf, desc = "Copy the generated commit message to the clipboard" })
         end,
@@ -125,11 +127,13 @@ local function bash(ctx)
     system = "Write a Bash script for the requested task. Return only the script without Markdown fences. Do not execute it.",
     user = request,
     loading = "Generating script",
-    on_done = function(script, output)
+    editable = true,
+    on_done = function(_, output)
       output:set_title(" Review generated script · r execute with Bash · y copy script ")
       -- Execute only after the user reviews the generated script and presses r.
       vim.keymap.set("n", "r", function()
-        vim.system({ "bash", "-c", script }, { text = true }, function(result)
+        local command = output:get_text()
+        vim.system({ "bash", "-c", command }, { text = true }, function(result)
           vim.schedule(function()
             local text = result.stdout or ""
             if result.stderr and result.stderr ~= "" then
@@ -145,7 +149,7 @@ local function bash(ctx)
         end)
       end, { buffer = output.buf, desc = "Execute the generated script with Bash" })
       vim.keymap.set("n", "y", function()
-        vim.fn.setreg("+", script)
+        vim.fn.setreg("+", output:get_text())
         vim.notify("luma: Bash script copied")
       end, { buffer = output.buf, desc = "Copy the generated Bash script to the clipboard" })
     end,
@@ -192,6 +196,7 @@ return { ---@type table<string, luma.ToolSpec|fun(ctx: luma.ToolContext)>
     source = "selection",
     title = " Tests… ",
     loading = { text = "Generating tests" },
+    editable = true,
     system = "Write useful test cases for the supplied code. Return only test code, without Markdown fences or explanation. Follow the source language and its established test conventions.",
   },
   rewrite = rewrite,
