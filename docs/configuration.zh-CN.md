@@ -100,7 +100,9 @@ Ollama 不需要 API key。
 
 ## 历史
 
-`history.path` 控制聊天持久化目录，`history.max` 限制保留会话数量。工具 Chat 使用 `history.path .. "/tools"` 下的独立子目录。
+`history.path` 控制持久化目录。`history.max` 分别限制每个独立历史作用域：主 Chat 和每个注册工具各自最多保留该数量的记录。工具 Chat 和成功完成的 `ctx.generate()` 使用 `history.path .. "/tools"` 下的独立子目录。工具或单次请求可设置 `history = false`，工具可通过 `history_max` 覆盖保留数量。
+
+历史只保存用户输入、生成结果、模型、时间戳和工具名，不保存 system prompt、凭据、请求 header，也不保存生成完成后产生的副作用结果。
 
 ## UI 与键位
 

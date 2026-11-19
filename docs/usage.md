@@ -8,7 +8,7 @@
 | `:LumaSubmit [prompt]` | Submit the argument or current Prompt buffer. |
 | `:LumaCancel` | Cancel active chat and one-off tool requests. |
 | `:LumaNew` | Start a new chat session. |
-| `:LumaHistory` | Restore a saved chat session with `vim.ui.select`. |
+| `:LumaHistory [all\|chat\|tool name]` | Open main-chat history or browse an isolated tool history. |
 | `:LumaModel [name]` | Select or switch the active model. |
 | `:LumaTool {name}` | Run a registered user tool; Visual ranges are supported. |
 
@@ -17,12 +17,15 @@
 The main chat coordinates four windows: Chat, Prompt, Models, and History.
 
 - `i`, `o`, `m`, and `h` move between windows.
-- `<CR>` selects a model or history item.
+- `<CR>` selects a model or restores a history item.
+- `d` in the main History window deletes the selected entry after confirmation.
 - `<Esc>` returns to Prompt.
 - `?` opens key help.
 - `q` closes the complete group.
 
 Prompt enters Insert mode by default when `ui.start_insert` is enabled. Streaming output appends to the active Assistant response and does not force the viewport to the bottom after manual scrolling.
+
+`:LumaHistory all` first selects the main chat or a tool scope. Tool entries can be opened as read-only snapshots or deleted; opening history never reruns a tool or its side effects. Programmatic management uses `luma.history_delete(id, opts)` and `luma.history_clear(opts)` with `{ scope = "chat" }` or `{ scope = "tool", tool = "name" }`. These APIs do not prompt, and deletion is permanent.
 
 ## Context directives
 

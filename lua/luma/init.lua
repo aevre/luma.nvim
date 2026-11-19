@@ -69,25 +69,103 @@ function M.resend()
   require("luma.session").resend()
 end
 
-function M.history()
-  local history = require("luma.history").list()
-  if #history == 0 then
+local function history_label(item)
+  local first = item.messages and item.messages[1] and item.messages[1].content or item.id
+  first = vim.trim((first or item.id):gsub("%s+", " "))
+  return ("%s · %s"):format(item.model or "?", first:sub(1, 60))
+end
+
+local function show_tool_history(item, tool)
+  local lines = { "# " .. tool, "" }
+  for _, message in ipairs(item.messages or {}) do
+    lines[#lines + 1] = message.role == "assistant" and "## Assistant" or "## Input"
+    lines[#lines + 1] = ""
+    vim.list_extend(lines, vim.split(message.content or "", "\n", { plain = true }))
+    lines[#lines + 1] = ""
+  end
+  local panel = require("luma.tools").panel((" %s history "):format(tool))
+  vim.bo[panel.buf].modifiable = true
+  vim.api.nvim_buf_set_lines(panel.buf, 0, -1, false, lines)
+  vim.bo[panel.buf].modifiable = false
+  panel:show()
+end
+
+local function select_history(opts)
+  local items = require("luma.history").list(opts)
+  if #items == 0 then
     vim.notify("luma: no saved history", vim.log.levels.INFO)
     return
   end
-  vim.ui.select(history, {
-    prompt = "Luma history: ",
-    format_item = function(item)
-      local first = item.messages and item.messages[2] and item.messages[2].content or item.id
-      first = vim.trim((first or item.id):gsub("%s+", " "))
-      return ("%s · %s"):format(item.model or "?", first:sub(1, 60))
-    end,
+  vim.ui.select(items, {
+    prompt = (opts.scope == "tool" and opts.tool or "Luma") .. " history: ",
+    format_item = history_label,
   }, function(item)
-    if item then
+    if not item then
+      return
+    end
+    if opts.scope ~= "tool" then
       require("luma.ui").open()
       require("luma.session").restore(item)
+      return
+    end
+    vim.ui.select({ "Open", "Delete", "Cancel" }, { prompt = "History action: " }, function(action)
+      if action == "Open" then
+        show_tool_history(item, opts.tool)
+      elseif action == "Delete" then
+        vim.ui.select({ "Cancel", "Delete" }, { prompt = "Delete this history entry? " }, function(choice)
+          if choice == "Delete" then
+            local ok, err = M.history_delete(item.id, opts)
+            if not ok then
+              vim.notify("luma: " .. err, vim.log.levels.ERROR)
+            end
+          end
+        end)
+      end
+    end)
+  end)
+end
+
+function M.history(opts)
+  opts = opts or { scope = "chat" }
+  if opts.scope ~= "all" then
+    select_history(opts)
+    return
+  end
+  vim.ui.select(require("luma.history").scopes(), {
+    prompt = "Luma history scope: ",
+    format_item = function(item)
+      return item.scope == "chat" and "Main chat" or item.tool
+    end,
+  }, function(scope)
+    if scope then
+      select_history(scope)
     end
   end)
+end
+
+function M.history_delete(id, opts)
+  opts = opts or {}
+  opts = { scope = opts.scope or "chat", tool = opts.tool }
+  local ok, err = require("luma.history").delete(id, opts)
+  if ok and opts.scope ~= "tool" and id:gsub("%.json$", "") == require("luma.session").current_id() then
+    require("luma.session").new()
+  elseif ok then
+    require("luma.ui").refresh_sidebars()
+  end
+  return ok, err
+end
+
+function M.history_clear(opts)
+  opts = opts or {}
+  opts = { scope = opts.scope or "chat", tool = opts.tool }
+  local result, err = require("luma.history").clear(opts)
+  local current_id = require("luma.session").current_id()
+  if result and opts.scope ~= "tool" and current_id and not require("luma.history").load(current_id, opts) then
+    require("luma.session").new()
+  elseif result then
+    require("luma.ui").refresh_sidebars()
+  end
+  return result, err
 end
 
 function M.model(name)
@@ -122,7 +200,16 @@ function M._bootstrap()
   end, { nargs = "*" })
   vim.api.nvim_create_user_command("LumaCancel", M.cancel, {})
   vim.api.nvim_create_user_command("LumaNew", M.new, {})
-  vim.api.nvim_create_user_command("LumaHistory", M.history, {})
+  vim.api.nvim_create_user_command("LumaHistory", function(command)
+    local args = vim.split(vim.trim(command.args), "%s+")
+    if args[1] == "all" then
+      M.history({ scope = "all" })
+    elseif args[1] == "tool" and args[2] then
+      M.history({ scope = "tool", tool = args[2] })
+    else
+      M.history({ scope = "chat" })
+    end
+  end, { nargs = "*" })
   vim.api.nvim_create_user_command("LumaModel", function(command)
     M.model(command.args)
   end, { nargs = "?", complete = complete(function()

@@ -201,12 +201,14 @@ local handle = ctx.generate({
 | `window` | no | `win.nvim` options merged into the automatically sized result panel. |
 | `on_done` | no | Receives `(result, output)` after the result window is created and filled. |
 | `on_error` | no | Receives the error string. No result window is created. |
+| `history` | no | Set `false` to skip this successful result in the tool's isolated history. |
+| `history_max` | no | Overrides retained entries for this tool history. |
 
 When `loading` is a table, it accepts `text`, `frames`, `interval`, `row`, `col`, `zindex`, `hl`, and `blend`. `text = false` hides the label and leaves only the animated frame.
 
 The returned handle has idempotent `cancel()` and `kill()` methods. `kill()` is a compatibility alias. During generation, Luma temporarily maps the configured cancel key in the source buffer unless that buffer already has a local mapping. `:LumaCancel` and `ctx.cancel()` are always available.
 
-Luma collects streamed chunks, rejects blank provider responses, strips one surrounding Markdown fence, sizes the result panel, writes the result, and then calls `on_done`. The callback may add buffer-local actions through the returned `output` window.
+Luma collects streamed chunks, rejects blank provider responses, strips one surrounding Markdown fence, saves successful calls made through a registered tool unless history is disabled, sizes the result panel, writes the result, and then calls `on_done`. Failed and cancelled requests are not saved. The callback may add buffer-local actions through the returned `output` window.
 
 ```lua
 ctx.generate({
@@ -254,8 +256,9 @@ translator = {
 | `system` | `string` | System message sent with every submission. |
 | `model` | `string` | Initial model; defaults to the tool model, then the global model. |
 | `history` | `boolean` | Controls independent persisted history. It is enabled unless explicitly set to `false`. |
+| `history_max` | `number` | Overrides retained entries for this tool history. |
 
-Use `i` to focus Prompt, `m` to choose a model, `h` to choose tool history, and the configured submit key to send input.
+Use `i` to focus Prompt, `m` to choose a model, `h` to choose tool history, `d` to delete a selected history entry, and the configured submit key to send input. Restoring a tool entry only displays its saved input and output; it never resubmits the request.
 
 ## Guarded rewrites
 

@@ -281,7 +281,19 @@ function M.refresh_sidebars()
   end
 end
 
-local function sidebar_window(title, row, col, width, height, select)
+local function sidebar_window(title, row, col, width, height, select, delete)
+  local sidebar_keys = {
+    ["<CR>"] = { select, desc = "Select" },
+    ["<Esc>"] = {
+      function()
+        focus("input")
+      end,
+      desc = "Back to prompt",
+    },
+  }
+  if delete then
+    sidebar_keys.d = { delete, desc = "Delete" }
+  end
   return Win({
     show = false,
     position = "float",
@@ -302,15 +314,7 @@ local function sidebar_window(title, row, col, width, height, select)
       signcolumn = "no",
       winhighlight = window_highlight,
     },
-    keys = vim.tbl_extend("force", keys(false), {
-      ["<CR>"] = { select, desc = "Select" },
-      ["<Esc>"] = {
-        function()
-          focus("input")
-        end,
-        desc = "Back to prompt",
-      },
-    }),
+    keys = vim.tbl_extend("force", keys(false), sidebar_keys),
     actions = actions(),
     on_close = close_group_on_external_close,
   })
@@ -371,6 +375,20 @@ local function create_float()
       M.refresh_sidebars()
       focus("input")
     end
+  end, function(self)
+    local item = sidebar.history[vim.api.nvim_win_get_cursor(self.win)[1]]
+    if not item then
+      return
+    end
+    vim.ui.select({ "Delete", "Cancel" }, { prompt = "Delete this history entry? " }, function(choice)
+      if choice ~= "Delete" then
+        return
+      end
+      local ok, err = require("luma").history_delete(item.id, { scope = "chat" })
+      if not ok then
+        vim.notify("luma: " .. err, vim.log.levels.ERROR)
+      end
+    end)
   end)
 
   M.output:show()

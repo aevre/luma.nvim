@@ -162,10 +162,39 @@ local function test_history()
   history.save({ id = "second", model = "test", messages = {} }, opts)
   history.save({ id = "third", model = "test", messages = {} }, opts)
   assert(#history.list(opts) == 2)
+  assert(history.delete("second", opts))
+  assert(not history.load("second", opts))
+  local unsafe, unsafe_err = history.delete("../third", opts)
+  assert(not unsafe and unsafe_err == "invalid history id")
+  history.save({ id = "shared", model = "test", messages = {} }, opts)
+  local tool_opts = { path = dir .. "/tools/translate", max = 2 }
+  history.save({ id = "shared", model = "test", messages = {} }, tool_opts)
+  assert(history.delete("shared", tool_opts))
+  assert(history.load("shared", opts) and not history.load("shared", tool_opts))
+  local original_history = require("luma.config").get().history
+  require("luma.config").get().history = opts
+  history.save({ id = "encoded", model = "test", messages = {} }, { scope = "tool", tool = "translate/zh" })
+  local scopes = history.scopes()
+  assert(vim.tbl_contains(
+    vim.tbl_map(function(scope)
+      return scope.tool
+    end, scopes),
+    "translate/zh"
+  ))
+  assert(history.delete("encoded", { scope = "tool", tool = "translate/zh" }))
+  require("luma.config").get().history = original_history
+  local cleared = assert(history.clear(opts))
+  assert(cleared.deleted == 2 and #cleared.failed == 0 and #history.list(opts) == 0)
   vim.fn.delete(dir, "rf")
 end
 
 local function test_tools_registry()
+  local original_buf = vim.api.nvim_get_current_buf()
+  local history_dir = vim.fn.tempname()
+  require("luma.config").setup({
+    history = { path = history_dir, max = 20 },
+    models = { { name = "only", backend = "ollama", model = "tiny" } },
+  })
   local tools = require("luma.tools")
   local ok, err = pcall(tools.generate, { title = "invalid" })
   assert(not ok and err:match("requires string system and user fields"))
@@ -195,6 +224,39 @@ local function test_tools_registry()
   assert(vim.fn.maparg("<C-c>", "n", false, true).desc == "Cancel Luma task")
   callbacks.on_error("test error")
   assert(vim.fn.maparg("<C-c>", "n", false, true).buffer ~= 1)
+  local history_panel
+  tools.generate({
+    system = "system",
+    user = "remember me",
+    model = "only",
+    tool = "translate",
+    loading = false,
+    on_done = function(_, output)
+      history_panel = output
+    end,
+  })
+  callbacks.on_delta("translated")
+  callbacks.on_done()
+  local saved = require("luma.history").list({ scope = "tool", tool = "translate" })
+  assert(#saved == 1 and saved[1].kind == "generate" and saved[1].tool == "translate")
+  assert(saved[1].messages[1].content == "remember me" and saved[1].messages[2].content == "translated")
+  history_panel:destroy()
+  tools.generate({
+    system = "system",
+    user = "forget me",
+    model = "only",
+    tool = "translate",
+    history = false,
+    loading = false,
+    on_done = function(_, output)
+      history_panel = output
+    end,
+  })
+  callbacks.on_delta("not saved")
+  callbacks.on_done()
+  assert(#require("luma.history").list({ scope = "tool", tool = "translate" }) == 1)
+  history_panel:destroy()
+  vim.api.nvim_set_current_buf(original_buf)
   rawset(request, "start", original_start)
   local called
   tools.setup({
@@ -348,6 +410,7 @@ local function test_tools_registry()
   clear_text()
   vim.api.nvim_set_current_buf(original)
   vim.api.nvim_buf_delete(scratch, { force = true })
+  vim.fn.delete(history_dir, "rf")
 end
 
 local function test_tool_chat()
@@ -382,7 +445,7 @@ local function test_tool_chat()
   assert(math.abs((group_left + group_right) / 2 - vim.o.columns / 2) <= 0.5)
   assert(math.abs((group_top + group_bottom) / 2 - vim.o.lines / 2) <= 0.5)
   local history = tool_chat._history_config(chat)
-  assert(history.path:match("/tools/translate$") and history.max == 3)
+  assert(history.scope == "tool" and history.tool == "translate" and history.max == 3)
   local request = require("luma.request")
   local original_start = request.start
   rawset(request, "start", function(_, _, opts)

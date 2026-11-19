@@ -273,6 +273,20 @@ function M.generate(spec)
       finish_request(request_id)
       clear_spinner()
       result = M.strip_fence(result)
+      if spec.tool and spec.history ~= false then
+        local _, history_err = require("luma.history").save({
+          kind = "generate",
+          tool = spec.tool,
+          model = model_name,
+          messages = {
+            { role = "user", content = spec.user },
+            { role = "assistant", content = result },
+          },
+        }, { scope = "tool", tool = spec.tool, max = spec.history_max })
+        if history_err then
+          vim.notify("luma: " .. history_err, vim.log.levels.ERROR)
+        end
+      end
       local dimensions = result_size(result)
       local output
       output = M.panel((spec.title or " Luma… "):gsub("…", ""), {
@@ -333,6 +347,9 @@ local function declarative(spec, ctx)
     loading = spec.loading,
     window = spec.window,
     model = spec.model,
+    tool = ctx.name,
+    history = spec.history,
+    history_max = spec.history_max,
   })
 end
 
@@ -391,13 +408,22 @@ function M.run(name, has_range)
     visual = M.visual,
     source = M.source,
     generate = function(generate_spec)
-      if type(generate_spec) == "table" and generate_spec.model == nil then
-        generate_spec = vim.tbl_extend("force", { model = spec.model }, generate_spec)
-      end
-      return M.generate(generate_spec)
+      return M.generate(vim.tbl_extend("force", {
+        model = spec.model,
+        tool = name,
+        history = spec.history,
+        history_max = spec.history_max,
+      }, generate_spec or {}))
     end,
     chat = function(chat_spec)
-      return require("luma.tool_chat").open(name, vim.tbl_extend("force", { model = spec.model }, chat_spec or {}))
+      return require("luma.tool_chat").open(
+        name,
+        vim.tbl_extend("force", {
+          model = spec.model,
+          history = spec.history,
+          history_max = spec.history_max,
+        }, chat_spec or {})
+      )
     end,
     cancel = M.cancel,
     loading = M.loading,

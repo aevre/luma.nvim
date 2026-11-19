@@ -100,7 +100,9 @@ Ollama requires no API key.
 
 ## History
 
-`history.path` controls persisted chat storage. `history.max` limits the number of retained sessions. Tool chats use isolated subdirectories under `history.path .. "/tools"`.
+`history.path` controls persisted storage. `history.max` limits each independent history scope: the main chat and every registered tool each retain up to that many entries. Tool chats and successful `ctx.generate()` calls use isolated subdirectories under `history.path .. "/tools"`. A tool or individual request may set `history = false`; tools may override retention with `history_max`.
+
+History stores user input, generated output, model, timestamps, and the tool name. It does not store system prompts, credentials, request headers, or side-effect results produced after generation.
 
 ## UI and keys
 

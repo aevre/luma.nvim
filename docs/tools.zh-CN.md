@@ -201,12 +201,14 @@ local handle = ctx.generate({
 | `window` | 否 | 与自动尺寸合并的 `win.nvim` 结果窗口选项。 |
 | `on_done` | 否 | 结果窗口创建并写入后接收 `(result, output)`。 |
 | `on_error` | 否 | 接收错误字符串；失败时不会创建结果窗口。 |
+| `history` | 否 | 设为 `false` 时，不把本次成功结果保存到该工具的独立历史。 |
+| `history_max` | 否 | 覆盖该工具历史的保留数量。 |
 
 `loading` 为表时支持 `text`、`frames`、`interval`、`row`、`col`、`zindex`、`hl` 和 `blend`。`text = false` 会隐藏文字，只保留动画帧。
 
 返回 handle 提供幂等的 `cancel()` 和 `kill()`；`kill()` 是兼容别名。生成期间，Luma 会临时在来源 buffer 绑定配置中的取消键，但不会覆盖已有 buffer-local 映射。始终可以使用 `:LumaCancel` 或 `ctx.cancel()`。
 
-Luma 会收集流式内容、拒绝空白响应、移除一层外部 Markdown fence、计算结果窗口尺寸、写入结果，然后调用 `on_done`。回调可通过 `output` 添加结果窗口操作。
+Luma 会收集流式内容、拒绝空白响应、移除一层外部 Markdown fence；通过注册工具调用时，除非关闭历史，否则会保存成功结果，然后计算结果窗口尺寸、写入结果并调用 `on_done`。失败和取消的请求不会保存。回调可通过 `output` 添加结果窗口操作。
 
 ```lua
 ctx.generate({
@@ -254,8 +256,9 @@ translator = {
 | `system` | `string` | 每次提交都会发送的 system message。 |
 | `model` | `string` | 初始模型；默认依次使用工具模型和全局模型。 |
 | `history` | `boolean` | 控制独立持久化历史；只有显式设为 `false` 才会关闭。 |
+| `history_max` | `number` | 覆盖该工具历史的保留数量。 |
 
-使用 `i` 聚焦 Prompt、`m` 选择模型、`h` 查看工具历史，并通过配置的 submit 键提交。
+使用 `i` 聚焦 Prompt、`m` 选择模型、`h` 查看工具历史、`d` 删除选中的历史，并通过配置的 submit 键提交。恢复工具记录只显示保存的输入和输出，不会重新提交请求。
 
 ## 受保护改写
 

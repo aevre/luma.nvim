@@ -6,7 +6,8 @@ local chats = {}
 local function history_config(chat)
   local cfg = require("luma.config").get().history
   return {
-    path = cfg.path .. "/tools/" .. chat.name,
+    scope = "tool",
+    tool = chat.name,
     max = chat.spec.history == false and 0 or (chat.spec.history_max or cfg.max),
   }
 end
@@ -25,6 +26,8 @@ local function save(chat, user, assistant)
     return
   end
   require("luma.history").save({
+    kind = "chat",
+    tool = chat.name,
     model = chat.model,
     messages = {
       { role = "user", content = user },
@@ -46,8 +49,12 @@ local function select_model(chat)
   end)
 end
 
+local function history_items(chat)
+  return require("luma.history").list(history_config(chat))
+end
+
 local function select_history(chat)
-  local items = require("luma.history").list(history_config(chat))
+  local items = history_items(chat)
   if #items == 0 then
     vim.notify("luma: no " .. chat.name .. " history", vim.log.levels.INFO)
     return
@@ -65,6 +72,35 @@ local function select_history(chat)
       chat.assistant = item.messages and item.messages[2] and item.messages[2].content or ""
       render(chat, chat.user, chat.assistant)
     end
+  end)
+end
+
+local function delete_history(chat)
+  local items = history_items(chat)
+  if #items == 0 then
+    vim.notify("luma: no " .. chat.name .. " history", vim.log.levels.INFO)
+    return
+  end
+  vim.ui.select(items, {
+    prompt = "Delete " .. (chat.spec.title or chat.name) .. " history: ",
+    format_item = function(item)
+      local message = item.messages and item.messages[1]
+      local text = vim.trim(((message and message.content) or item.id):gsub("%s+", " "))
+      return ("%s · %s"):format(item.model or "?", text:sub(1, 60))
+    end,
+  }, function(item)
+    if not item then
+      return
+    end
+    vim.ui.select({ "Cancel", "Delete" }, { prompt = "Delete this history entry? " }, function(choice)
+      if choice ~= "Delete" then
+        return
+      end
+      local ok, err = require("luma.history").delete(item.id, history_config(chat))
+      if not ok then
+        vim.notify("luma: " .. err, vim.log.levels.ERROR)
+      end
+    end)
   end)
 end
 
@@ -184,6 +220,9 @@ local function create(name, spec)
     history = function()
       select_history(chat)
     end,
+    delete_history = function()
+      delete_history(chat)
+    end,
     input = function()
       chat.input:focus()
       vim.cmd("startinsert")
@@ -199,6 +238,7 @@ local function create(name, spec)
     q = { "close", mode = "n", desc = "Close" },
     m = { "model", mode = "n", desc = "Select model" },
     h = { "history", mode = "n", desc = "History" },
+    d = { "delete_history", mode = "n", desc = "Delete history" },
     [cfg.keys.close] = { "close", mode = { "n", "i" }, desc = "Close" },
     [cfg.keys.cancel] = { "cancel", mode = { "n", "i" }, desc = "Cancel" },
   }

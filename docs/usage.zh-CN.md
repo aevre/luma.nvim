@@ -8,7 +8,7 @@
 | `:LumaSubmit [prompt]` | 提交参数或当前 Prompt buffer。 |
 | `:LumaCancel` | 取消进行中的 Chat 和一次性工具请求。 |
 | `:LumaNew` | 创建新聊天会话。 |
-| `:LumaHistory` | 通过 `vim.ui.select` 恢复历史会话。 |
+| `:LumaHistory [all\|chat\|tool name]` | 打开主 Chat 历史或浏览独立工具历史。 |
 | `:LumaModel [name]` | 选择或切换当前模型。 |
 | `:LumaTool {name}` | 运行用户注册的工具，支持 Visual 范围。 |
 
@@ -17,12 +17,15 @@
 主 Chat 协调 Chat、Prompt、Models 和 History 四个窗口。
 
 - 使用 `i`、`o`、`m` 和 `h` 在窗口间移动。
-- 使用 `<CR>` 选择模型或历史项目。
+- 使用 `<CR>` 选择模型或恢复历史项目。
+- 在主 History 窗口使用 `d`，确认后删除当前记录。
 - 使用 `<Esc>` 返回 Prompt。
 - 使用 `?` 查看键位帮助。
 - 使用 `q` 关闭整个窗口组。
 
 启用 `ui.start_insert` 时，Prompt 打开后默认进入 Insert 模式。流式输出追加到当前 Assistant 回复；用户手动向上滚动后，不会强制把视口拉到底部。
+
+`:LumaHistory all` 会先选择主 Chat 或工具作用域。工具记录可作为只读快照打开或删除；查看历史绝不会重新运行工具或其副作用。程序化管理使用 `luma.history_delete(id, opts)` 和 `luma.history_clear(opts)`，作用域为 `{ scope = "chat" }` 或 `{ scope = "tool", tool = "name" }`。这些 API 不弹确认，删除不可恢复。
 
 ## 上下文指令
 
