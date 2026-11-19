@@ -2,15 +2,15 @@
 
 ## Commands
 
-| Command | Action |
-| --- | --- |
-| `:LumaToggle` | Show or hide the main UI. |
-| `:LumaSubmit [prompt]` | Submit the argument or the current Prompt buffer. |
-| `:LumaCancel` | Cancel active chat and one-off tool requests. |
-| `:LumaNew` | Start a new chat. |
-| `:LumaHistory [all\|chat\|tool name]` | Browse saved chat or tool history. |
-| `:LumaModel [name]` | Select a model. |
-| `:LumaTool {name}` | Run a registered tool. Visual ranges are supported. |
+| Command                               | Action                                              |
+| ------------------------------------- | --------------------------------------------------- |
+| `:LumaToggle`                         | Show or hide the main UI.                           |
+| `:LumaSubmit [prompt]`                | Submit the argument or the current Prompt buffer.   |
+| `:LumaCancel`                         | Cancel active chat and one-off tool requests.       |
+| `:LumaNew`                            | Start a new chat.                                   |
+| `:LumaHistory [all\|chat\|tool name]` | Browse saved chat or tool history.                  |
+| `:LumaModel [name]`                   | Select a model.                                     |
+| `:LumaTool {name}`                    | Run a registered tool. Visual ranges are supported. |
 
 ## Main windows
 
@@ -29,12 +29,12 @@ Prompt starts in Insert mode when `ui.start_insert` is enabled. Streaming follow
 
 Add context directives anywhere in a prompt:
 
-| Directive | Result |
-| --- | --- |
-| `/buffer` | Append the source buffer. |
-| `/buffer number` | Append another listed and loaded buffer. |
-| `/file path` | Append a file. |
-| `@web_search query` | Search Tavily and append the result. |
+| Directive           | Result                                   |
+| ------------------- | ---------------------------------------- |
+| `/buffer`           | Append the source buffer.                |
+| `/buffer number`    | Append another listed and loaded buffer. |
+| `/file path`        | Append a file.                           |
+| `@web_search query` | Search Tavily and append the result.     |
 
 File and buffer content share the `max_context_bytes` limit. Unknown buffers and unreadable files return an error.
 

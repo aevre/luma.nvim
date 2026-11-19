@@ -22,17 +22,17 @@ require("luma").setup({
 
 ## 通用选项
 
-| 选项 | 默认值 | 作用 |
-| --- | --- | --- |
-| `model` | 第一个已配置模型 | 初始模型名称。 |
-| `prompt` | 编码助手 Prompt | 主 Chat 的 system prompt。 |
-| `stream` | `true` | 使用流式输出。 |
-| `timeout` | `120000` | 请求超时，单位为毫秒。 |
-| `max_tokens` | `nil` | 可选的 provider token 限制。 |
-| `temperature` | `nil` | 可选的 provider temperature。 |
-| `diagnostics` | `false` | 主 Chat 提交时加入来源 Buffer 的诊断信息。 |
-| `debug` | `false` | 通过 `vim.notify` 输出请求生命周期日志。 |
-| `max_context_bytes` | `200000` | `/buffer` 和 `/file` 共用的字节限制。 |
+| 选项                | 默认值           | 作用                                       |
+| ------------------- | ---------------- | ------------------------------------------ |
+| `model`             | 第一个已配置模型 | 初始模型名称。                             |
+| `prompt`            | 编码助手 Prompt  | 主 Chat 的 system prompt。                 |
+| `stream`            | `true`           | 使用流式输出。                             |
+| `timeout`           | `120000`         | 请求超时，单位为毫秒。                     |
+| `max_tokens`        | `nil`            | 可选的 provider token 限制。               |
+| `temperature`       | `nil`            | 可选的 provider temperature。              |
+| `diagnostics`       | `false`          | 主 Chat 提交时加入来源 Buffer 的诊断信息。 |
+| `debug`             | `false`          | 通过 `vim.notify` 输出请求生命周期日志。   |
+| `max_context_bytes` | `200000`         | `/buffer` 和 `/file` 共用的字节限制。      |
 
 ## 模型
 
@@ -51,16 +51,16 @@ models = {
 
 也可以使用列表，但每项都必须提供 `name`。
 
-| 字段 | 作用 |
-| --- | --- |
-| `name` | 仅列表形式需要。 |
+| 字段      | 作用                                        |
+| --------- | ------------------------------------------- |
+| `name`    | 仅列表形式需要。                            |
 | `backend` | `"openai"` 或 `"ollama"`，默认 `"openai"`。 |
-| `model` | 发送给 provider 的模型标识。 |
-| `url` | Chat 接口地址。 |
-| `api_key` | 环境变量名、密钥字符串，或返回密钥的函数。 |
-| `headers` | 额外的 curl header。 |
-| `stream` | 覆盖该模型的流式设置。 |
-| `timeout` | 覆盖该模型的超时设置。 |
+| `model`   | 发送给 provider 的模型标识。                |
+| `url`     | Chat 接口地址。                             |
+| `api_key` | 环境变量名、密钥字符串，或返回密钥的函数。  |
+| `headers` | 额外的 curl header。                        |
+| `stream`  | 覆盖该模型的流式设置。                      |
+| `timeout` | 覆盖该模型的超时设置。                      |
 
 示例见[模型平台和 API Key](providers.zh-CN.md)。
 

@@ -48,12 +48,12 @@ tests = {
 
 ### Input source
 
-| Value | Input |
-| --- | --- |
+| Value               | Input                                                         |
+| ------------------- | ------------------------------------------------------------- |
 | omitted or `"auto"` | Visual selection when supplied, otherwise the current buffer. |
-| `"selection"` | Visual selection only; missing selection is an error. |
-| `"buffer"` | Whole current buffer. |
-| `"prompt"` | Text entered through `vim.fn.input()`. |
+| `"selection"`       | Visual selection only; missing selection is an error.         |
+| `"buffer"`          | Whole current buffer.                                         |
+| `"prompt"`          | Text entered through `vim.fn.input()`.                        |
 
 `input_title` labels the input prompt. `instruction` adds text before the collected input:
 
@@ -69,22 +69,22 @@ review = {
 
 ### Fields
 
-| Field | Meaning |
-| --- | --- |
-| `system` | Required system message. |
-| `source` | Input source. |
-| `input_title` | Label used by `source = "prompt"`. |
-| `instruction` | Text added before the collected input. |
-| `title` | Result-window title. |
-| `model` | Tool model override. |
-| `loading` | `false`, a label string, or loading-window options. |
-| `window` | Result-window options passed to win.nvim. |
-| `editable` | Set `true` to allow editing the result buffer. |
-| `history` | Set `false` to disable tool history. |
-| `history_max` | Tool history retention override. |
-| `on_done` | Called with `(result, output)`. |
-| `on_error` | Called with the error string. |
-| `run` | Enables a custom workflow instead of declarative processing. |
+| Field         | Meaning                                                      |
+| ------------- | ------------------------------------------------------------ |
+| `system`      | Required system message.                                     |
+| `source`      | Input source.                                                |
+| `input_title` | Label used by `source = "prompt"`.                           |
+| `instruction` | Text added before the collected input.                       |
+| `title`       | Result-window title.                                         |
+| `model`       | Tool model override.                                         |
+| `loading`     | `false`, a label string, or loading-window options.          |
+| `window`      | Result-window options passed to win.nvim.                    |
+| `editable`    | Set `true` to allow editing the result buffer.               |
+| `history`     | Set `false` to disable tool history.                         |
+| `history_max` | Tool history retention override.                             |
+| `on_done`     | Called with `(result, output)`.                              |
+| `on_error`    | Called with the error string.                                |
+| `run`         | Enables a custom workflow instead of declarative processing. |
 
 ## Custom workflows
 
@@ -118,19 +118,19 @@ When `run` exists, Luma does not process the declarative `source`, `system`, or 
 
 ### Context
 
-| Member | Meaning |
-| --- | --- |
-| `ctx.name` | Registered tool name. |
-| `ctx.tool` | Registered tool definition. |
-| `ctx.has_range` | Whether the command supplied a Visual range. |
-| `ctx.visual()` | Return the Visual text and range. |
-| `ctx.source(has_range)` | Return the Visual selection or whole buffer. |
-| `ctx.generate(spec)` | Run one request and open a result window. |
-| `ctx.chat(spec)` | Open an isolated Prompt/Output tool Chat. |
-| `ctx.cancel()` | Cancel active one-off tool requests. |
-| `ctx.loading(opts)` | Start a loading window and return its cleanup function. |
-| `ctx.panel(title, keys, opts)` | Create a result panel. |
-| `ctx.strip_fence(text)` | Remove one surrounding Markdown code fence. |
+| Member                         | Meaning                                                 |
+| ------------------------------ | ------------------------------------------------------- |
+| `ctx.name`                     | Registered tool name.                                   |
+| `ctx.tool`                     | Registered tool definition.                             |
+| `ctx.has_range`                | Whether the command supplied a Visual range.            |
+| `ctx.visual()`                 | Return the Visual text and range.                       |
+| `ctx.source(has_range)`        | Return the Visual selection or whole buffer.            |
+| `ctx.generate(spec)`           | Run one request and open a result window.               |
+| `ctx.chat(spec)`               | Open an isolated Prompt/Output tool Chat.               |
+| `ctx.cancel()`                 | Cancel active one-off tool requests.                    |
+| `ctx.loading(opts)`            | Start a loading window and return its cleanup function. |
+| `ctx.panel(title, keys, opts)` | Create a result panel.                                  |
+| `ctx.strip_fence(text)`        | Remove one surrounding Markdown code fence.             |
 
 ## One-off generation
 
@@ -156,19 +156,19 @@ Successful registered-tool requests are saved unless history is disabled. Failed
 
 ### Generation fields
 
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `system` | yes | System message. |
-| `user` | yes | User message. |
-| `title` | no | Result-window title. |
-| `model` | no | Per-request model override. |
-| `loading` | no | Loading label or options; `false` disables it. |
-| `window` | no | Result-window options. |
-| `editable` | no | Set `true` to allow editing the result buffer. |
-| `on_done` | no | Receives `(result, output)`. |
-| `on_error` | no | Receives the error string. |
-| `history` | no | Set `false` to skip history. |
-| `history_max` | no | Retention override for the tool scope. |
+| Field         | Required | Meaning                                        |
+| ------------- | -------- | ---------------------------------------------- |
+| `system`      | yes      | System message.                                |
+| `user`        | yes      | User message.                                  |
+| `title`       | no       | Result-window title.                           |
+| `model`       | no       | Per-request model override.                    |
+| `loading`     | no       | Loading label or options; `false` disables it. |
+| `window`      | no       | Result-window options.                         |
+| `editable`    | no       | Set `true` to allow editing the result buffer. |
+| `on_done`     | no       | Receives `(result, output)`.                   |
+| `on_error`    | no       | Receives the error string.                     |
+| `history`     | no       | Set `false` to skip history.                   |
+| `history_max` | no       | Retention override for the tool scope.         |
 
 ## Tool Chat
 
@@ -193,13 +193,13 @@ Tool Chat is separate from the main Chat:
 - Previous output is not sent with the next request.
 - Restoring history displays a snapshot and does not rerun the tool.
 
-| Field | Meaning |
-| --- | --- |
-| `system` | System message sent with every request. |
-| `title` | Window title. |
-| `model` | Initial model override. |
-| `history` | Set `false` to disable history. |
-| `history_max` | History retention override. |
+| Field         | Meaning                                 |
+| ------------- | --------------------------------------- |
+| `system`      | System message sent with every request. |
+| `title`       | Window title.                           |
+| `model`       | Initial model override.                 |
+| `history`     | Set `false` to disable history.         |
+| `history_max` | History retention override.             |
 
 Use `i` for Prompt, `m` for model selection, `h` for history, and `d` to delete a history entry.
 

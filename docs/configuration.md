@@ -22,17 +22,17 @@ require("luma").setup({
 
 ## General options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `model` | first configured model | Initial model name. |
-| `prompt` | coding assistant prompt | System prompt for the main Chat. |
-| `stream` | `true` | Stream provider output. |
-| `timeout` | `120000` | Request timeout in milliseconds. |
-| `max_tokens` | `nil` | Optional provider token limit. |
-| `temperature` | `nil` | Optional provider temperature. |
-| `diagnostics` | `false` | Add source-buffer diagnostics to main-chat submissions. |
-| `debug` | `false` | Log request lifecycle events through `vim.notify`. |
-| `max_context_bytes` | `200000` | Shared byte limit for `/buffer` and `/file` context. |
+| Option              | Default                 | Meaning                                                 |
+| ------------------- | ----------------------- | ------------------------------------------------------- |
+| `model`             | first configured model  | Initial model name.                                     |
+| `prompt`            | coding assistant prompt | System prompt for the main Chat.                        |
+| `stream`            | `true`                  | Stream provider output.                                 |
+| `timeout`           | `120000`                | Request timeout in milliseconds.                        |
+| `max_tokens`        | `nil`                   | Optional provider token limit.                          |
+| `temperature`       | `nil`                   | Optional provider temperature.                          |
+| `diagnostics`       | `false`                 | Add source-buffer diagnostics to main-chat submissions. |
+| `debug`             | `false`                 | Log request lifecycle events through `vim.notify`.      |
+| `max_context_bytes` | `200000`                | Shared byte limit for `/buffer` and `/file` context.    |
 
 ## Models
 
@@ -51,16 +51,16 @@ models = {
 
 It may also be a list when every item has a `name` field.
 
-| Field | Meaning |
-| --- | --- |
-| `name` | Required only in list form. |
-| `backend` | `"openai"` or `"ollama"`. Defaults to `"openai"`. |
-| `model` | Model identifier sent to the provider. |
-| `url` | Chat endpoint. |
+| Field     | Meaning                                                              |
+| --------- | -------------------------------------------------------------------- |
+| `name`    | Required only in list form.                                          |
+| `backend` | `"openai"` or `"ollama"`. Defaults to `"openai"`.                    |
+| `model`   | Model identifier sent to the provider.                               |
+| `url`     | Chat endpoint.                                                       |
 | `api_key` | Environment variable name, literal key, or function returning a key. |
-| `headers` | Extra curl headers. |
-| `stream` | Per-model streaming override. |
-| `timeout` | Per-model timeout override. |
+| `headers` | Extra curl headers.                                                  |
+| `stream`  | Per-model streaming override.                                        |
+| `timeout` | Per-model timeout override.                                          |
 
 See [Providers and API keys](providers.md) for examples.
 

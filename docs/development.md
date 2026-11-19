@@ -2,21 +2,21 @@
 
 ## Repository layout
 
-| Path | Responsibility |
-| --- | --- |
-| `lua/luma/init.lua` | Public API, commands, setup, and runtime bootstrap. |
-| `lua/luma/config.lua` | Defaults, option merging, validation, and shared configuration types. |
-| `lua/luma/backend.lua` | Request bodies and OpenAI/Ollama response parsing. |
-| `lua/luma/request.lua` | curl process lifecycle, streaming, errors, and cancellation. |
-| `lua/luma/session.lua` | Main Chat state and request coordination. |
-| `lua/luma/ui.lua` | Main windows, navigation, rendering, and source-window restoration. |
-| `lua/luma/history.lua` | Saved Chat and tool history. |
-| `lua/luma/tools.lua` | Tool registry and one-off generation. |
-| `lua/luma/tool_chat.lua` | Isolated tool Chat sessions. |
-| `lua/luma/context.lua` | Buffer, file, diagnostics, and completion context. |
-| `lua/luma/diff.lua` | Guarded selection replacement. |
-| `lua/luma/web.lua` | Tavily integration. |
-| `tests/smoke.lua` | Headless regression tests. |
+| Path                     | Responsibility                                                        |
+| ------------------------ | --------------------------------------------------------------------- |
+| `lua/luma/init.lua`      | Public API, commands, setup, and runtime bootstrap.                   |
+| `lua/luma/config.lua`    | Defaults, option merging, validation, and shared configuration types. |
+| `lua/luma/backend.lua`   | Request bodies and OpenAI/Ollama response parsing.                    |
+| `lua/luma/request.lua`   | curl process lifecycle, streaming, errors, and cancellation.          |
+| `lua/luma/session.lua`   | Main Chat state and request coordination.                             |
+| `lua/luma/ui.lua`        | Main windows, navigation, rendering, and source-window restoration.   |
+| `lua/luma/history.lua`   | Saved Chat and tool history.                                          |
+| `lua/luma/tools.lua`     | Tool registry and one-off generation.                                 |
+| `lua/luma/tool_chat.lua` | Isolated tool Chat sessions.                                          |
+| `lua/luma/context.lua`   | Buffer, file, diagnostics, and completion context.                    |
+| `lua/luma/diff.lua`      | Guarded selection replacement.                                        |
+| `lua/luma/web.lua`       | Tavily integration.                                                   |
+| `tests/smoke.lua`        | Headless regression tests.                                            |
 
 ## LuaLS annotations
 

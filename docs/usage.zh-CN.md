@@ -2,15 +2,15 @@
 
 ## 命令
 
-| 命令 | 作用 |
-| --- | --- |
-| `:LumaToggle` | 显示或隐藏主界面。 |
-| `:LumaSubmit [prompt]` | 提交参数或当前 Prompt 内容。 |
-| `:LumaCancel` | 取消当前 Chat 和一次性工具请求。 |
-| `:LumaNew` | 新建 Chat。 |
-| `:LumaHistory [all\|chat\|tool name]` | 浏览 Chat 或工具历史。 |
-| `:LumaModel [name]` | 选择模型。 |
-| `:LumaTool {name}` | 运行已注册工具，支持 Visual 范围。 |
+| 命令                                  | 作用                               |
+| ------------------------------------- | ---------------------------------- |
+| `:LumaToggle`                         | 显示或隐藏主界面。                 |
+| `:LumaSubmit [prompt]`                | 提交参数或当前 Prompt 内容。       |
+| `:LumaCancel`                         | 取消当前 Chat 和一次性工具请求。   |
+| `:LumaNew`                            | 新建 Chat。                        |
+| `:LumaHistory [all\|chat\|tool name]` | 浏览 Chat 或工具历史。             |
+| `:LumaModel [name]`                   | 选择模型。                         |
+| `:LumaTool {name}`                    | 运行已注册工具，支持 Visual 范围。 |
 
 ## 主窗口
 
@@ -29,12 +29,12 @@
 
 可以在 Prompt 任意位置加入上下文指令：
 
-| 指令 | 作用 |
-| --- | --- |
-| `/buffer` | 加入来源 Buffer。 |
-| `/buffer number` | 加入另一个已列出且已加载的 Buffer。 |
-| `/file path` | 加入文件内容。 |
-| `@web_search query` | 使用 Tavily 搜索并加入结果。 |
+| 指令                | 作用                                |
+| ------------------- | ----------------------------------- |
+| `/buffer`           | 加入来源 Buffer。                   |
+| `/buffer number`    | 加入另一个已列出且已加载的 Buffer。 |
+| `/file path`        | 加入文件内容。                      |
+| `@web_search query` | 使用 Tavily 搜索并加入结果。        |
 
 文件和 Buffer 内容共用 `max_context_bytes` 限制。找不到 Buffer 或无法读取文件时会返回错误。
 

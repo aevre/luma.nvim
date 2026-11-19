@@ -48,12 +48,12 @@ tests = {
 
 ### 输入来源
 
-| 值 | 输入 |
-| --- | --- |
+| 值              | 输入                                            |
+| --------------- | ----------------------------------------------- |
 | 省略或 `"auto"` | 有 Visual 范围时使用选择，否则使用当前 Buffer。 |
-| `"selection"` | 只接受 Visual 选择；没有选择时返回错误。 |
-| `"buffer"` | 使用整个当前 Buffer。 |
-| `"prompt"` | 使用 `vim.fn.input()` 输入的内容。 |
+| `"selection"`   | 只接受 Visual 选择；没有选择时返回错误。        |
+| `"buffer"`      | 使用整个当前 Buffer。                           |
+| `"prompt"`      | 使用 `vim.fn.input()` 输入的内容。              |
 
 `input_title` 设置输入框标题。`instruction` 会加在收集到的输入之前：
 
@@ -69,22 +69,22 @@ review = {
 
 ### 字段
 
-| 字段 | 作用 |
-| --- | --- |
-| `system` | 必填的 system message。 |
-| `source` | 输入来源。 |
-| `input_title` | `source = "prompt"` 使用的标题。 |
-| `instruction` | 加在输入前的说明。 |
-| `title` | 结果窗口标题。 |
-| `model` | 工具模型覆盖。 |
-| `loading` | `false`、标签字符串或 Loading 窗口选项。 |
-| `window` | 传给 win.nvim 的结果窗口选项。 |
-| `editable` | 设置为 `true` 时允许编辑结果 Buffer。 |
-| `history` | 设置为 `false` 时不保存工具历史。 |
-| `history_max` | 工具历史保留数量。 |
-| `on_done` | 接收 `(result, output)`。 |
-| `on_error` | 接收错误字符串。 |
-| `run` | 使用自定义流程，不执行声明式处理。 |
+| 字段          | 作用                                     |
+| ------------- | ---------------------------------------- |
+| `system`      | 必填的 system message。                  |
+| `source`      | 输入来源。                               |
+| `input_title` | `source = "prompt"` 使用的标题。         |
+| `instruction` | 加在输入前的说明。                       |
+| `title`       | 结果窗口标题。                           |
+| `model`       | 工具模型覆盖。                           |
+| `loading`     | `false`、标签字符串或 Loading 窗口选项。 |
+| `window`      | 传给 win.nvim 的结果窗口选项。           |
+| `editable`    | 设置为 `true` 时允许编辑结果 Buffer。    |
+| `history`     | 设置为 `false` 时不保存工具历史。        |
+| `history_max` | 工具历史保留数量。                       |
+| `on_done`     | 接收 `(result, output)`。                |
+| `on_error`    | 接收错误字符串。                         |
+| `run`         | 使用自定义流程，不执行声明式处理。       |
 
 ## 自定义流程
 
@@ -118,19 +118,19 @@ end
 
 ### Context
 
-| 成员 | 作用 |
-| --- | --- |
-| `ctx.name` | 注册名称。 |
-| `ctx.tool` | 注册时的工具定义。 |
-| `ctx.has_range` | 命令是否带有 Visual 范围。 |
-| `ctx.visual()` | 返回选择文本和范围。 |
-| `ctx.source(has_range)` | 返回 Visual 选择或整个 Buffer。 |
-| `ctx.generate(spec)` | 运行一次请求并打开结果窗口。 |
-| `ctx.chat(spec)` | 打开独立的 Prompt/Output 工具 Chat。 |
-| `ctx.cancel()` | 取消正在运行的一次性工具请求。 |
-| `ctx.loading(opts)` | 打开 Loading 窗口并返回清理函数。 |
-| `ctx.panel(title, keys, opts)` | 创建结果面板。 |
-| `ctx.strip_fence(text)` | 去掉一层 Markdown 代码围栏。 |
+| 成员                           | 作用                                 |
+| ------------------------------ | ------------------------------------ |
+| `ctx.name`                     | 注册名称。                           |
+| `ctx.tool`                     | 注册时的工具定义。                   |
+| `ctx.has_range`                | 命令是否带有 Visual 范围。           |
+| `ctx.visual()`                 | 返回选择文本和范围。                 |
+| `ctx.source(has_range)`        | 返回 Visual 选择或整个 Buffer。      |
+| `ctx.generate(spec)`           | 运行一次请求并打开结果窗口。         |
+| `ctx.chat(spec)`               | 打开独立的 Prompt/Output 工具 Chat。 |
+| `ctx.cancel()`                 | 取消正在运行的一次性工具请求。       |
+| `ctx.loading(opts)`            | 打开 Loading 窗口并返回清理函数。    |
+| `ctx.panel(title, keys, opts)` | 创建结果面板。                       |
+| `ctx.strip_fence(text)`        | 去掉一层 Markdown 代码围栏。         |
 
 ## 一次性生成
 
@@ -156,19 +156,19 @@ local handle = ctx.generate({
 
 ### 生成字段
 
-| 字段 | 必填 | 作用 |
-| --- | --- | --- |
-| `system` | 是 | System message。 |
-| `user` | 是 | User message。 |
-| `title` | 否 | 结果窗口标题。 |
-| `model` | 否 | 单次请求的模型覆盖。 |
-| `loading` | 否 | Loading 标签或选项；`false` 表示关闭。 |
-| `window` | 否 | 结果窗口选项。 |
-| `editable` | 否 | 设置为 `true` 时允许编辑结果 Buffer。 |
-| `on_done` | 否 | 接收 `(result, output)`。 |
-| `on_error` | 否 | 接收错误字符串。 |
-| `history` | 否 | 设置为 `false` 时不保存历史。 |
-| `history_max` | 否 | 该工具作用域的保留数量。 |
+| 字段          | 必填 | 作用                                   |
+| ------------- | ---- | -------------------------------------- |
+| `system`      | 是   | System message。                       |
+| `user`        | 是   | User message。                         |
+| `title`       | 否   | 结果窗口标题。                         |
+| `model`       | 否   | 单次请求的模型覆盖。                   |
+| `loading`     | 否   | Loading 标签或选项；`false` 表示关闭。 |
+| `window`      | 否   | 结果窗口选项。                         |
+| `editable`    | 否   | 设置为 `true` 时允许编辑结果 Buffer。  |
+| `on_done`     | 否   | 接收 `(result, output)`。              |
+| `on_error`    | 否   | 接收错误字符串。                       |
+| `history`     | 否   | 设置为 `false` 时不保存历史。          |
+| `history_max` | 否   | 该工具作用域的保留数量。               |
 
 ## 工具 Chat
 
@@ -193,13 +193,13 @@ translate = {
 - 上一次输出不会发送给下一次请求。
 - 恢复历史只显示快照，不会重新运行工具。
 
-| 字段 | 作用 |
-| --- | --- |
-| `system` | 每次请求发送的 system message。 |
-| `title` | 窗口标题。 |
-| `model` | 初始模型覆盖。 |
-| `history` | 设置为 `false` 时不保存历史。 |
-| `history_max` | 历史保留数量。 |
+| 字段          | 作用                            |
+| ------------- | ------------------------------- |
+| `system`      | 每次请求发送的 system message。 |
+| `title`       | 窗口标题。                      |
+| `model`       | 初始模型覆盖。                  |
+| `history`     | 设置为 `false` 时不保存历史。   |
+| `history_max` | 历史保留数量。                  |
 
 使用 `i` 进入 Prompt，`m` 选择模型，`h` 选择历史，`d` 删除历史记录。
 

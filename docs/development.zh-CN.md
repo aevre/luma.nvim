@@ -2,21 +2,21 @@
 
 ## 仓库结构
 
-| 路径 | 作用 |
-| --- | --- |
-| `lua/luma/init.lua` | 公开 API、命令、setup 和运行时初始化。 |
-| `lua/luma/config.lua` | 默认配置、合并、校验和共享配置类型。 |
-| `lua/luma/backend.lua` | 请求体和 OpenAI/Ollama 响应解析。 |
-| `lua/luma/request.lua` | curl 进程、流式输出、错误和取消。 |
-| `lua/luma/session.lua` | 主 Chat 状态和请求协调。 |
-| `lua/luma/ui.lua` | 主窗口、导航、渲染和来源窗口恢复。 |
-| `lua/luma/history.lua` | 主 Chat 和工具历史记录。 |
-| `lua/luma/tools.lua` | 工具注册表和一次性生成。 |
-| `lua/luma/tool_chat.lua` | 独立工具 Chat。 |
-| `lua/luma/context.lua` | Buffer、文件、诊断和补全上下文。 |
-| `lua/luma/diff.lua` | 受保护的选择替换。 |
-| `lua/luma/web.lua` | Tavily 集成。 |
-| `tests/smoke.lua` | Headless 回归测试。 |
+| 路径                     | 作用                                   |
+| ------------------------ | -------------------------------------- |
+| `lua/luma/init.lua`      | 公开 API、命令、setup 和运行时初始化。 |
+| `lua/luma/config.lua`    | 默认配置、合并、校验和共享配置类型。   |
+| `lua/luma/backend.lua`   | 请求体和 OpenAI/Ollama 响应解析。      |
+| `lua/luma/request.lua`   | curl 进程、流式输出、错误和取消。      |
+| `lua/luma/session.lua`   | 主 Chat 状态和请求协调。               |
+| `lua/luma/ui.lua`        | 主窗口、导航、渲染和来源窗口恢复。     |
+| `lua/luma/history.lua`   | 主 Chat 和工具历史记录。               |
+| `lua/luma/tools.lua`     | 工具注册表和一次性生成。               |
+| `lua/luma/tool_chat.lua` | 独立工具 Chat。                        |
+| `lua/luma/context.lua`   | Buffer、文件、诊断和补全上下文。       |
+| `lua/luma/diff.lua`      | 受保护的选择替换。                     |
+| `lua/luma/web.lua`       | Tavily 集成。                          |
+| `tests/smoke.lua`        | Headless 回归测试。                    |
 
 ## LuaLS 注解
 
