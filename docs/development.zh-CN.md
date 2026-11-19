@@ -32,6 +32,23 @@
 
 Provider 请求 handle 提供 `kill()`。`ctx.generate()` 返回的公开 handle 同时提供 `cancel()` 和 `kill()`。
 
+### 本地 LuaLS 配置
+
+`.luarc.json.example` 是编辑器配置的共享起点。将它复制到仓库根目录的 `.luarc.json`：
+
+```sh
+cp .luarc.json.example .luarc.json
+```
+
+如果 `win.nvim`、`animate.nvim`、Neovim runtime 文件或 LuaJIT 库位于其他位置，修改复制后的 `workspace.library`。例如：
+
+```json
+"${workspaceFolder}/../win.nvim/lua",
+"${workspaceFolder}/../animate.nvim/lua"
+```
+
+`.luarc.json` 只保留在本地。它已被 Git 忽略，不应提交。仓库 lint 命令使用 `.luarc.json.example`；使用 `make lint` 检查共享配置，使用 `make check` 运行完整项目检查。
+
 ## 注释
 
 英文注释用于解释代码本身不容易看出的行为，例如：
@@ -68,7 +85,7 @@ make test
 git diff --check
 ```
 
-`make check` 会运行 Stylua、Selene 和 Headless smoke tests。需要时可以覆盖本地依赖路径：
+`make check` 会运行 Stylua、Selene、LuaLS 和 Headless smoke tests。需要时可以覆盖本地依赖路径：
 
 ```sh
 make test WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim

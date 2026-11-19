@@ -32,6 +32,23 @@ Reuse those types in other modules. Keep nilability and callback signatures cons
 
 A provider request handle exposes `kill()`. The public handle returned by `ctx.generate()` exposes both `cancel()` and `kill()`.
 
+### Local LuaLS configuration
+
+`.luarc.json.example` is the shared starting point for editor configuration. Copy it to `.luarc.json` in the repository root:
+
+```sh
+cp .luarc.json.example .luarc.json
+```
+
+Edit `workspace.library` in the copied file when `win.nvim`, `animate.nvim`, Neovim runtime files, or LuaJIT libraries are stored in different locations. For example:
+
+```json
+"${workspaceFolder}/../win.nvim/lua",
+"${workspaceFolder}/../animate.nvim/lua"
+```
+
+Keep `.luarc.json` local. It is ignored by Git and must not be committed. The repository lint command uses `.luarc.json.example`; use `make lint` to check the shared configuration and `make check` for the complete project check.
+
 ## Comments
 
 Use English comments for behavior that is difficult to infer from the code, such as:
@@ -68,7 +85,7 @@ make test
 git diff --check
 ```
 
-`make check` runs Stylua, Selene, and the headless smoke suite. Set local dependency paths when needed:
+`make check` runs Stylua, Selene, LuaLS, and the headless smoke suite. Set local dependency paths when needed:
 
 ```sh
 make test WIN_NVIM=/path/to/win.nvim ANIMATE_NVIM=/path/to/animate.nvim
