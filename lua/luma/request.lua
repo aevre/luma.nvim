@@ -61,6 +61,8 @@ function M.start(model, messages, opts)
   local id = next_id
   local started = vim.uv.hrtime()
   local output_bytes = 0
+  local response_bytes = 0
+  local response_chunks = 0
   local debug = require("luma.debug")
   debug.log("request.start", {
     id = id,
@@ -135,6 +137,8 @@ function M.start(model, messages, opts)
       if not data or done then
         return
       end
+      response_bytes = response_bytes + #data
+      response_chunks = response_chunks + 1
       -- Streaming responses are parsed incrementally; non-streaming output is buffered whole.
       if stream and parser then
         local _, err = parser(data, false)
@@ -158,33 +162,34 @@ function M.start(model, messages, opts)
         parse_error = err
       end
       done = true
+      local clean_stderr = stderr ~= "" and stderr or result.stderr or ""
+      local diagnostics = {
+        id = id,
+        elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
+        exit_code = result.code,
+        response_bytes = response_bytes,
+        response_chunks = response_chunks,
+        stderr_bytes = #clean_stderr,
+      }
       if result.code ~= 0 then
-        local message = vim.trim(stderr ~= "" and stderr or result.stderr or "curl failed")
+        local message = vim.trim(clean_stderr ~= "" and clean_stderr or "curl failed")
         local err = ("request failed (%d): %s"):format(result.code, message)
-        debug.log(
-          "request.error",
-          { id = id, elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000), error = err }
-        )
+        diagnostics.error = err
+        debug.log("request.error", diagnostics)
         opts.on_error(err)
         return
       end
       if parse_error then
-        debug.log("request.error", {
-          id = id,
-          elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
-          error = parse_error,
-        })
+        diagnostics.error = parse_error
+        debug.log("request.error", diagnostics)
         opts.on_error(parse_error)
         return
       end
       if not stream then
         local text, err = backend.parse_response(model, stdout)
         if not text then
-          debug.log("request.error", {
-            id = id,
-            elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
-            error = err,
-          })
+          diagnostics.error = err
+          debug.log("request.error", diagnostics)
           opts.on_error(err or "provider response could not be parsed")
           return
         end
@@ -194,18 +199,13 @@ function M.start(model, messages, opts)
       end
       if not received then
         local err = "provider returned an empty response"
-        debug.log(
-          "request.error",
-          { id = id, elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000), error = err }
-        )
+        diagnostics.error = err
+        debug.log("request.error", diagnostics)
         opts.on_error(err)
         return
       end
-      debug.log("request.done", {
-        id = id,
-        elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000),
-        output_bytes = output_bytes,
-      })
+      diagnostics.output_bytes = output_bytes
+      debug.log("request.done", diagnostics)
       opts.on_done()
     end)
   end)

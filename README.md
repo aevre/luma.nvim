@@ -4,6 +4,20 @@ A small Neovim 0.10+ LLM client with streaming chat, multiple models, saved hist
 
 [简体中文](README.zh-CN.md)
 
+## Demos
+
+### Coordinated workspace
+
+![Luma Chat, Prompt, Models, and History workspace](docs/workspace.png)
+
+The four coordinated windows can be opened without sending a provider request.
+
+### Keyboard navigation
+
+![Navigating between Luma workspace panels](docs/navigation.gif)
+
+The built-in panel keys move focus between Models, History, Prompt, and Chat. Sending a request still requires a configured provider and API key.
+
 ## Requirements
 
 - Neovim 0.10 or newer

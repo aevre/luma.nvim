@@ -57,6 +57,19 @@ local function test_openai_parser()
   assert(table.concat(chunks) == "hello!")
 end
 
+local function test_openai_json_fallback()
+  local chunks = {}
+  local parse = require("luma.backend").openai_parser(function(text)
+    chunks[#chunks + 1] = text
+  end)
+  local done, err = parse('{"choices":[{"message":{"content":"fallback"}}]}', true)
+  assert(done and not err and table.concat(chunks) == "fallback")
+
+  parse = require("luma.backend").openai_parser(function() end)
+  done, err = parse('{"error":{"message":"provider rejected request"}}', true)
+  assert(not done and err == "provider rejected request")
+end
+
 local function test_ollama_parser()
   local chunks = {}
   local parse = require("luma.backend").ollama_parser(function(text)
@@ -70,7 +83,18 @@ end
 
 local function test_empty_response()
   local original_system = vim.system
+  local original_notify = vim.notify
   local error_message
+  local debug_message
+  require("luma.config").setup({
+    debug = true,
+    models = { { name = "test", backend = "ollama", model = "test", stream = false } },
+  })
+  rawset(vim, "notify", function(text, level)
+    if level == vim.log.levels.DEBUG and text:find("request.error", 1, true) then
+      debug_message = text
+    end
+  end)
   rawset(vim, "system", function(_, opts, callback)
     opts.stdout(nil, '{"message":{"content":""}}')
     vim.schedule(function()
@@ -97,7 +121,11 @@ local function test_empty_response()
     return error_message ~= nil
   end)
   rawset(vim, "system", original_system)
+  rawset(vim, "notify", original_notify)
+  require("luma.config").setup({ models = { { name = "test", backend = "ollama", model = "test" } } })
   assert(error_message == "provider returned an empty response")
+  assert(debug_message and debug_message:find("response_bytes=26", 1, true))
+  assert(debug_message:find("response_chunks=1", 1, true))
 end
 
 local function test_large_request_body_uses_stdin()
@@ -657,6 +685,7 @@ end
 local function test()
   test_config()
   test_openai_parser()
+  test_openai_json_fallback()
   test_ollama_parser()
   test_empty_response()
   test_large_request_body_uses_stdin()

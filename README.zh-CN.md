@@ -4,6 +4,20 @@
 
 [English](README.md)
 
+## 演示
+
+### 联动工作区
+
+![Luma 的 Chat、Prompt、Models 和 History 工作区](docs/workspace.png)
+
+四个联动窗口无需发送 provider 请求即可打开。
+
+### 键盘导航
+
+![在 Luma 工作区面板之间导航](docs/navigation.gif)
+
+内置面板按键可在 Models、History、Prompt 和 Chat 之间移动焦点；发送请求仍需要配置 provider 和 API key。
+
 ## 要求
 
 - Neovim 0.10 或更高版本
