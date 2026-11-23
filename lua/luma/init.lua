@@ -125,14 +125,18 @@ local function select_history(opts)
       if action == "Open" then
         show_tool_history(item, opts.tool)
       elseif action == "Delete" then
-        vim.ui.select({ "Cancel", "Delete" }, { prompt = "Delete this history entry? " }, function(choice)
-          if choice == "Delete" then
-            local ok, err = M.history_delete(item.id, opts)
-            if not ok then
-              vim.notify("luma: " .. err, vim.log.levels.ERROR)
+        vim.ui.select(
+          { "Cancel", "Delete" },
+          { prompt = "Delete this history entry? " },
+          function(choice)
+            if choice == "Delete" then
+              local ok, err = M.history_delete(item.id, opts)
+              if not ok then
+                vim.notify("luma: " .. err, vim.log.levels.ERROR)
+              end
             end
           end
-        end)
+        )
       end
     end)
   end)
@@ -168,7 +172,11 @@ function M.history_delete(id, opts)
   -- Public management accepts named scopes only, never an arbitrary filesystem path.
   opts = { scope = opts.scope or "chat", tool = opts.tool }
   local ok, err = require("luma.history").delete(id, opts)
-  if ok and opts.scope ~= "tool" and id:gsub("%.json$", "") == require("luma.session").current_id() then
+  if
+    ok
+    and opts.scope ~= "tool"
+    and id:gsub("%.json$", "") == require("luma.session").current_id()
+  then
     -- Reset memory so the next submission cannot recreate the deleted session ID.
     require("luma.session").new()
   elseif ok then
@@ -187,7 +195,12 @@ function M.history_clear(opts)
   opts = { scope = opts.scope or "chat", tool = opts.tool }
   local result, err = require("luma.history").clear(opts)
   local current_id = require("luma.session").current_id()
-  if result and opts.scope ~= "tool" and current_id and not require("luma.history").load(current_id, opts) then
+  if
+    result
+    and opts.scope ~= "tool"
+    and current_id
+    and not require("luma.history").load(current_id, opts)
+  then
     require("luma.session").new()
   elseif result then
     require("luma.ui").refresh_sidebars()
@@ -243,14 +256,21 @@ function M._bootstrap()
   end, { nargs = "*" })
   vim.api.nvim_create_user_command("LumaModel", function(command)
     M.model(command.args)
-  end, { nargs = "?", complete = complete(function()
-    return require("luma.models").names()
-  end) })
+  end, {
+    nargs = "?",
+    complete = complete(function()
+      return require("luma.models").names()
+    end),
+  })
   vim.api.nvim_create_user_command("LumaTool", function(command)
     M.tool(command.args, command.range > 0)
-  end, { nargs = 1, range = true, complete = complete(function()
-    return require("luma.tools").names()
-  end) })
+  end, {
+    nargs = 1,
+    range = true,
+    complete = complete(function()
+      return require("luma.tools").names()
+    end),
+  })
 end
 
 return M

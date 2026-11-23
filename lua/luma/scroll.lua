@@ -20,7 +20,11 @@ function M.bottom(panel, immediate)
   end
 
   local animate = require("animate")
-  if immediate or current == line_count or not animate.enabled({ name = "scroll", buf = panel.buf }) then
+  if
+    immediate
+    or current == line_count
+    or not animate.enabled({ name = "scroll", buf = panel.buf })
+  then
     move(line_count)
     return
   end

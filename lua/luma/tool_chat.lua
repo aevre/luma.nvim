@@ -127,15 +127,19 @@ local function delete_history(chat)
     if not item then
       return
     end
-    vim.ui.select({ "Cancel", "Delete" }, { prompt = "Delete this history entry? " }, function(choice)
-      if choice ~= "Delete" then
-        return
+    vim.ui.select(
+      { "Cancel", "Delete" },
+      { prompt = "Delete this history entry? " },
+      function(choice)
+        if choice ~= "Delete" then
+          return
+        end
+        local ok, err = require("luma.history").delete(item.id, history_config(chat))
+        if not ok then
+          vim.notify("luma: " .. err, vim.log.levels.ERROR)
+        end
       end
-      local ok, err = require("luma.history").delete(item.id, history_config(chat))
-      if not ok then
-        vim.notify("luma: " .. err, vim.log.levels.ERROR)
-      end
-    end)
+    )
   end)
 end
 
@@ -207,7 +211,13 @@ local function submit(chat)
       chat.request = nil
       chat.error = err
       if chat.input:buf_valid() then
-        vim.api.nvim_buf_set_lines(chat.input.buf, 0, -1, false, vim.split(chat.user, "\n", { plain = true }))
+        vim.api.nvim_buf_set_lines(
+          chat.input.buf,
+          0,
+          -1,
+          false,
+          vim.split(chat.user, "\n", { plain = true })
+        )
       end
       render(chat, chat.user, chat.assistant)
       vim.notify("luma: " .. err, vim.log.levels.ERROR)
@@ -228,9 +238,13 @@ end
 ---@return luma.ToolChat
 local function create(name, spec)
   local cfg = require("luma.config").get()
-  local outer_width = type(cfg.ui.width) == "number" and cfg.ui.width < 1 and math.floor(vim.o.columns * cfg.ui.width)
+  local outer_width = type(cfg.ui.width) == "number"
+      and cfg.ui.width < 1
+      and math.floor(vim.o.columns * cfg.ui.width)
     or cfg.ui.width
-  local outer_height = type(cfg.ui.height) == "number" and cfg.ui.height < 1 and math.floor(vim.o.lines * cfg.ui.height)
+  local outer_height = type(cfg.ui.height) == "number"
+      and cfg.ui.height < 1
+      and math.floor(vim.o.lines * cfg.ui.height)
     or cfg.ui.height
   outer_width = math.max(40, outer_width)
   outer_height = math.max(10, outer_height)
@@ -300,7 +314,11 @@ local function create(name, spec)
     border = cfg.ui.border,
     title = " " .. (spec.title or name) .. " ",
     ft = "markdown",
-    bo = { buftype = "nofile", bufhidden = "wipe", modifiable = false },
+    bo = {
+      buftype = "nofile",
+      bufhidden = "wipe",
+      modifiable = false,
+    },
     wo = {
       wrap = true,
       linebreak = true,
@@ -331,7 +349,11 @@ local function create(name, spec)
     border = cfg.ui.border,
     title = " Prompt ",
     ft = "markdown",
-    bo = { buftype = "nofile", bufhidden = "wipe", modifiable = true },
+    bo = {
+      buftype = "nofile",
+      bufhidden = "wipe",
+      modifiable = true,
+    },
     wo = {
       wrap = true,
       linebreak = true,

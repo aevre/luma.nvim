@@ -87,29 +87,41 @@ message without Markdown fences or explanation.
         loading = "Generating commit message",
         editable = true,
         on_done = function(_, output)
-          output:set_title(" Review generated message · c commit staged changes · y copy message ")
+          output:set_title(
+            " Review generated message · c commit staged changes · y copy message "
+          )
           -- Commit only after the user reviews the generated message and presses c.
           vim.keymap.set("n", "c", function()
             local commit_message = output:get_text()
-            vim.system({ "git", "commit", "-F", "-" }, { text = true, stdin = commit_message }, function(result)
-              vim.schedule(function()
-                if result.code ~= 0 then
-                  vim.notify("luma: " .. vim.trim(result.stderr), vim.log.levels.ERROR)
-                  return
-                end
-                output:destroy()
-                vim.notify(vim.trim(result.stdout), vim.log.levels.INFO)
-                local ok, lazygit = pcall(require, "lazygit")
-                if ok then
-                  lazygit.open()
-                end
-              end)
-            end)
-          end, { buffer = output.buf, desc = "Commit staged changes using the generated message" })
+            vim.system(
+              { "git", "commit", "-F", "-" },
+              { text = true, stdin = commit_message },
+              function(result)
+                vim.schedule(function()
+                  if result.code ~= 0 then
+                    vim.notify("luma: " .. vim.trim(result.stderr), vim.log.levels.ERROR)
+                    return
+                  end
+                  output:destroy()
+                  vim.notify(vim.trim(result.stdout), vim.log.levels.INFO)
+                  local ok, lazygit = pcall(require, "lazygit")
+                  if ok then
+                    lazygit.open()
+                  end
+                end)
+              end
+            )
+          end, {
+            buffer = output.buf,
+            desc = "Commit staged changes using the generated message",
+          })
           vim.keymap.set("n", "y", function()
             vim.fn.setreg("+", output:get_text())
             vim.notify("luma: commit message copied")
-          end, { buffer = output.buf, desc = "Copy the generated commit message to the clipboard" })
+          end, {
+            buffer = output.buf,
+            desc = "Copy the generated commit message to the clipboard",
+          })
         end,
       })
     end)
@@ -141,7 +153,13 @@ local function bash(ctx)
             end
             if output:buf_valid() then
               vim.bo[output.buf].modifiable = true
-              vim.api.nvim_buf_set_lines(output.buf, 0, -1, false, vim.split(text, "\n", { plain = true }))
+              vim.api.nvim_buf_set_lines(
+                output.buf,
+                0,
+                -1,
+                false,
+                vim.split(text, "\n", { plain = true })
+              )
               vim.bo[output.buf].modifiable = false
               output:set_title((" Bash exit %d "):format(result.code))
             end

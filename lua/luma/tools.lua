@@ -175,7 +175,8 @@ local function spinner(opts)
     return function() end
   end
   opts = type(opts) == "table" and opts or {}
-  local frames = opts.frames or { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+  local frames = opts.frames
+    or { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
   local text = opts.text
   local frame = 1
   local active = true
@@ -436,7 +437,13 @@ function M.generate(spec)
         ["<Esc>"] = "close",
       }, vim.tbl_deep_extend("force", dimensions, spec.window or {}))
       vim.bo[output.buf].modifiable = true
-      vim.api.nvim_buf_set_lines(output.buf, 0, -1, false, vim.split(result, "\n", { plain = true }))
+      vim.api.nvim_buf_set_lines(
+        output.buf,
+        0,
+        -1,
+        false,
+        vim.split(result, "\n", { plain = true })
+      )
       vim.bo[output.buf].modifiable = spec.editable == true
       if spec.on_done then
         spec.on_done(result, output)

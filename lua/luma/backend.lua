@@ -45,7 +45,8 @@ local function emit_openai_response(payload, on_delta)
     return nil, "OpenAI stream response was neither SSE nor valid JSON: " .. tostring(data)
   end
   if data.error then
-    local err = type(data.error) == "table" and (data.error.message or vim.inspect(data.error)) or data.error
+    local err = type(data.error) == "table" and (data.error.message or vim.inspect(data.error))
+      or data.error
     return nil, tostring(err)
   end
   local choice = data.choices and data.choices[1]
@@ -62,7 +63,12 @@ end
 ---@param on_delta luma.DeltaCallback
 ---@return luma.StreamParser
 function M.openai_parser(on_delta)
-  local state = { buffer = "", event = {}, fallback = "", sse = false }
+  local state = {
+    buffer = "",
+    event = {},
+    fallback = "",
+    sse = false,
+  }
 
   local function process_event()
     if #state.event == 0 then
@@ -200,11 +206,13 @@ function M.parse_response(model, text)
     return nil, "invalid JSON response: " .. tostring(data)
   end
   if data.error then
-    local err = type(data.error) == "table" and (data.error.message or vim.inspect(data.error)) or data.error
+    local err = type(data.error) == "table" and (data.error.message or vim.inspect(data.error))
+      or data.error
     return nil, tostring(err)
   end
   if model.backend == "ollama" then
-    return data.message and data.message.content or nil, "Ollama response did not contain message.content"
+    return data.message and data.message.content or nil,
+      "Ollama response did not contain message.content"
   end
   local choice = data.choices and data.choices[1]
   return choice and choice.message and choice.message.content or nil,

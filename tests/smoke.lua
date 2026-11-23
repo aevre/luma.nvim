@@ -122,7 +122,9 @@ local function test_empty_response()
   end)
   rawset(vim, "system", original_system)
   rawset(vim, "notify", original_notify)
-  require("luma.config").setup({ models = { { name = "test", backend = "ollama", model = "test" } } })
+  require("luma.config").setup({
+    models = { { name = "test", backend = "ollama", model = "test" } },
+  })
   assert(error_message == "provider returned an empty response")
   assert(debug_message and debug_message:find("response_bytes=26", 1, true))
   assert(debug_message:find("response_chunks=1", 1, true))
@@ -215,7 +217,8 @@ local function test_context_completion()
     return item.word == tostring(target)
   end, items)
   assert(#match == 1 and match[1].abbr:match("target.lua$"))
-  local expanded = assert(context.expand("review /buffer " .. target, { bufnr = vim.api.nvim_get_current_buf() }))
+  local expanded =
+    assert(context.expand("review /buffer " .. target, { bufnr = vim.api.nvim_get_current_buf() }))
   assert(expanded:find("target buffer", 1, true))
   vim.api.nvim_buf_delete(target, { force = true })
   vim.fn.delete(dir, "rf")
@@ -249,7 +252,10 @@ local function test_history()
   assert(history.load("shared", opts) and not history.load("shared", tool_opts))
   local original_history = require("luma.config").get().history
   require("luma.config").get().history = opts
-  history.save({ id = "encoded", model = "test", messages = {} }, { scope = "tool", tool = "translate/zh" })
+  history.save(
+    { id = "encoded", model = "test", messages = {} },
+    { scope = "tool", tool = "translate/zh" }
+  )
   local scopes = history.scopes()
   assert(vim.tbl_contains(
     vim.tbl_map(function(scope)
@@ -289,7 +295,8 @@ local function test_tools_registry()
       end,
     }
   end)
-  local handle = tools.generate({ system = "system", user = "user", model = "only", loading = false })
+  local handle =
+    tools.generate({ system = "system", user = "user", model = "only", loading = false })
   assert(received.model.name == "only")
   assert(received.messages[1].content == "system" and received.messages[2].content == "user")
   assert(vim.fn.maparg("<C-c>", "n", false, true).desc == "Cancel Luma task")
@@ -317,7 +324,9 @@ local function test_tools_registry()
   callbacks.on_done()
   local saved = require("luma.history").list({ scope = "tool", tool = "translate" })
   assert(#saved == 1 and saved[1].kind == "generate" and saved[1].tool == "translate")
-  assert(saved[1].messages[1].content == "remember me" and saved[1].messages[2].content == "translated")
+  assert(
+    saved[1].messages[1].content == "remember me" and saved[1].messages[2].content == "translated"
+  )
   assert(vim.bo[history_panel.buf].modifiable)
   vim.api.nvim_buf_set_lines(history_panel.buf, 0, -1, false, { "edited result" })
   assert(history_panel:get_text() == "edited result")
@@ -430,7 +439,9 @@ local function test_tools_registry()
   tools.run("prompt", false)
   assert(generated.system == "prompt system" and generated.user == "question")
   local source_ok, source_err = pcall(tools.run, "invalid", false)
-  assert(not source_ok and type(source_err) == "string" and source_err:match("invalid source unknown"))
+  assert(
+    not source_ok and type(source_err) == "string" and source_err:match("invalid source unknown")
+  )
   rawset(tools, "generate", original_generate)
   vim.api.nvim_set_current_buf(declarative_original)
   vim.api.nvim_buf_delete(declarative_buf, { force = true })
@@ -450,12 +461,17 @@ local function test_tools_registry()
   local initial_width = vim.api.nvim_win_get_width(panel.win)
   local dynamic_title = " Review generated message · c commit staged changes · y copy message "
   panel:set_title(dynamic_title)
-  assert(vim.api.nvim_win_get_width(panel.win) >= vim.api.nvim_strwidth(vim.trim(dynamic_title)) + 4)
+  assert(
+    vim.api.nvim_win_get_width(panel.win) >= vim.api.nvim_strwidth(vim.trim(dynamic_title)) + 4
+  )
   assert(vim.api.nvim_win_get_width(panel.win) > initial_width)
   panel:destroy()
   local initial_title = " Review generated script · r execute with Bash · y copy script "
   local titled_panel = tools.panel(initial_title, nil, { width = 36 })
-  assert(vim.api.nvim_win_get_width(titled_panel.win) >= vim.api.nvim_strwidth(vim.trim(initial_title)) + 4)
+  assert(
+    vim.api.nvim_win_get_width(titled_panel.win)
+      >= vim.api.nvim_strwidth(vim.trim(initial_title)) + 4
+  )
   titled_panel:destroy()
   local small = tools._result_size("short")
   local large = tools._result_size(string.rep("x", 1000) .. "\n" .. string.rep("line\n", 100))
@@ -480,7 +496,9 @@ local function test_tools_registry()
   assert(vim.wo[spinner_win].winhighlight == "Normal:LumaLoading,FloatBorder:LumaLoadingBorder")
   assert(#vim.api.nvim_win_get_config(spinner_win).border == 8)
   assert(vim.api.nvim_win_get_config(spinner_win).focusable == false)
-  assert(vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(spinner_win), 0, -1, false)[1] == "⠋")
+  assert(
+    vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(spinner_win), 0, -1, false)[1] == "⠋"
+  )
   vim.api.nvim_win_set_cursor(0, { 3, 0 })
   vim.wait(30)
   assert(vim.api.nvim_win_get_config(spinner_win).relative ~= "")
@@ -496,7 +514,11 @@ local function test_tools_registry()
     end
   end
   assert(spinner_win)
-  assert(vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(spinner_win), 0, -1, false)[1]:match("Generating$"))
+  assert(
+    vim.api
+      .nvim_buf_get_lines(vim.api.nvim_win_get_buf(spinner_win), 0, -1, false)[1]
+      :match("Generating$")
+  )
   clear_text()
   vim.api.nvim_set_current_buf(original)
   vim.api.nvim_buf_delete(scratch, { force = true })
@@ -606,7 +628,9 @@ local function test_window_lifecycle()
   local input_config = vim.api.nvim_win_get_config(ui.input.win)
   local models_config = vim.api.nvim_win_get_config(ui.models.win)
   local history_config = vim.api.nvim_win_get_config(ui.history.win)
-  assert(output_config.border and input_config.border and models_config.border and history_config.border)
+  assert(
+    output_config.border and input_config.border and models_config.border and history_config.border
+  )
   assert(input_config.row == output_config.row + output_config.height + 2)
   assert(models_config.col == output_config.col + output_config.width + 2)
   assert(history_config.row == models_config.row + models_config.height + 2)
@@ -654,9 +678,10 @@ local function test_window_lifecycle()
   ui.clear_input()
   assert(ui.input_text() == "")
   ui.render({ "##  You", "", "hello", "", "## 󰚩 Assistant", "", "" }, " Test… ", true)
-  local highlights = vim.api.nvim_buf_get_extmarks(ui.output.buf, vim.api.nvim_get_namespaces().luma, 0, -1, {
-    details = true,
-  })
+  local highlights =
+    vim.api.nvim_buf_get_extmarks(ui.output.buf, vim.api.nvim_get_namespaces().luma, 0, -1, {
+      details = true,
+    })
   assert(#highlights == 2)
   assert(highlights[1][4].hl_group == "LumaUser")
   assert(highlights[2][4].hl_group == "LumaAssistant")

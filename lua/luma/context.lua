@@ -27,7 +27,9 @@ local function selection()
     return nil, "no visual selection"
   end
   local start_line, end_line = first[2] - 1, last[2] - 1
-  local start_length = #(vim.api.nvim_buf_get_lines(bufnr, start_line, start_line + 1, false)[1] or "")
+  local start_length = #(
+    vim.api.nvim_buf_get_lines(bufnr, start_line, start_line + 1, false)[1] or ""
+  )
   local end_length = #(vim.api.nvim_buf_get_lines(bufnr, end_line, end_line + 1, false)[1] or "")
   local start_col = math.min(first[3] - 1, start_length)
   local end_col = math.min(last[3], end_length)
@@ -97,7 +99,11 @@ end
 local function diagnostics(bufnr)
   local lines = {}
   for _, diagnostic in ipairs(vim.diagnostic.get(bufnr)) do
-    lines[#lines + 1] = ("%d:%d %s"):format(diagnostic.lnum + 1, diagnostic.col + 1, diagnostic.message)
+    lines[#lines + 1] = ("%d:%d %s"):format(
+      diagnostic.lnum + 1,
+      diagnostic.col + 1,
+      diagnostic.message
+    )
   end
   return table.concat(lines, "\n")
 end
@@ -116,7 +122,8 @@ end
 function M.expand(text, opts)
   opts = opts or {}
   local cfg = require("luma.config").get()
-  local bufnr = opts.bufnr and vim.api.nvim_buf_is_valid(opts.bufnr) and opts.bufnr or vim.api.nvim_get_current_buf()
+  local bufnr = opts.bufnr and vim.api.nvim_buf_is_valid(opts.bufnr) and opts.bufnr
+    or vim.api.nvim_get_current_buf()
   local max_bytes = opts.max_context_bytes or cfg.max_context_bytes
   local additions = {}
   local total = 0
@@ -197,8 +204,13 @@ function M.complete(text, cursor_col)
     local items = {}
     for _, info in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
       local name = buffer_name(info.bufnr)
-      if buffer == "" or name:lower():find(buffer:lower(), 1, true) or tostring(info.bufnr):find(buffer, 1, true) then
-        items[#items + 1] = { word = tostring(info.bufnr), abbr = name, menu = ("buffer %d"):format(info.bufnr) }
+      if
+        buffer == ""
+        or name:lower():find(buffer:lower(), 1, true)
+        or tostring(info.bufnr):find(buffer, 1, true)
+      then
+        items[#items + 1] =
+          { word = tostring(info.bufnr), abbr = name, menu = ("buffer %d"):format(info.bufnr) }
       end
     end
     return #before - #buffer + 1, items

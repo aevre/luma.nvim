@@ -44,7 +44,13 @@ local M = {}
 ---@return string? name
 ---@return string? error
 local function safe_name(value, label)
-  if type(value) ~= "string" or value == "" or value == "." or value == ".." or not value:match("^[%w%._-]+$") then
+  if
+    type(value) ~= "string"
+    or value == ""
+    or value == "."
+    or value == ".."
+    or not value:match("^[%w%._-]+$")
+  then
     return nil, "invalid " .. label
   end
   return value
@@ -72,9 +78,11 @@ local function decode_name(value)
   if value:sub(1, 1) ~= "@" or #value % 2 ~= 1 or not value:sub(2):match("^%x+$") then
     return value
   end
-  return (value:sub(2):gsub("(%x%x)", function(hex)
-    return string.char(tonumber(hex, 16))
-  end))
+  return (
+    value:sub(2):gsub("(%x%x)", function(hex)
+      return string.char(tonumber(hex, 16))
+    end)
+  )
 end
 
 ---Resolve a public scope or an internal explicit path to one storage directory.
@@ -246,7 +254,8 @@ function M.delete(id, opts)
     return nil, "history not found"
   end
   local ok, err = vim.uv.fs_unlink(path)
-  return ok and true or nil, err and ("failed to delete history: " .. tostring(err)) or "failed to delete history"
+  return ok and true or nil,
+    err and ("failed to delete history: " .. tostring(err)) or "failed to delete history"
 end
 
 ---Delete only JSON history files in the selected scope; directories are retained.

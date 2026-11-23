@@ -120,7 +120,11 @@ function M.show(source, proposed, selection)
     height = 0.75,
     border = "rounded",
     ft = vim.bo[selection.bufnr].filetype,
-    bo = { modifiable = false, buftype = "nofile", bufhidden = "wipe" },
+    bo = {
+      modifiable = false,
+      buftype = "nofile",
+      bufhidden = "wipe",
+    },
     wo = {
       number = true,
       wrap = false,

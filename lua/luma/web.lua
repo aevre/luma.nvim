@@ -81,7 +81,12 @@ function M.search(query, callback)
         lines[#lines + 1] = data.answer
       end
       for i, item in ipairs(data.results or {}) do
-        lines[#lines + 1] = ("[%d] %s\n%s\n%s"):format(i, item.title or "Result", item.content or "", item.url or "")
+        lines[#lines + 1] = ("[%d] %s\n%s\n%s"):format(
+          i,
+          item.title or "Result",
+          item.content or "",
+          item.url or ""
+        )
       end
       local content = table.concat(lines, "\n\n")
       debug.log("web.done", {

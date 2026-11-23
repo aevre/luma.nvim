@@ -57,7 +57,8 @@ local window_highlight = table.concat({
 ---@return integer|string[]|luma.CompletionItem[]
 function M.complete(findstart, _)
   local cursor = vim.api.nvim_win_get_cursor(0)
-  local start_col, items = require("luma.context").complete(vim.api.nvim_get_current_line(), cursor[2])
+  local start_col, items =
+    require("luma.context").complete(vim.api.nvim_get_current_line(), cursor[2])
   if findstart == 1 then
     completion_items = items or {}
     return start_col and start_col - 1 or -1
@@ -344,7 +345,12 @@ local function sidebar_window(title, row, col, width, height, select, delete)
     title = title,
     title_pos = "center",
     ft = "markdown",
-    bo = { buftype = "nofile", bufhidden = "hide", swapfile = false, modifiable = false },
+    bo = {
+      buftype = "nofile",
+      bufhidden = "hide",
+      swapfile = false,
+      modifiable = false,
+    },
     wo = {
       cursorline = true,
       wrap = false,
@@ -407,28 +413,40 @@ local function create_float()
       focus("input")
     end
   end)
-  M.history = sidebar_window(" History ", history_row, side_col, sidebar_width, history_height, function(self)
-    local item = sidebar.history[vim.api.nvim_win_get_cursor(self.win)[1]]
-    if item then
-      require("luma.session").restore(item)
-      M.refresh_sidebars()
-      focus("input")
-    end
-  end, function(self)
-    local item = sidebar.history[vim.api.nvim_win_get_cursor(self.win)[1]]
-    if not item then
-      return
-    end
-    vim.ui.select({ "Delete", "Cancel" }, { prompt = "Delete this history entry? " }, function(choice)
-      if choice ~= "Delete" then
+  M.history = sidebar_window(
+    " History ",
+    history_row,
+    side_col,
+    sidebar_width,
+    history_height,
+    function(self)
+      local item = sidebar.history[vim.api.nvim_win_get_cursor(self.win)[1]]
+      if item then
+        require("luma.session").restore(item)
+        M.refresh_sidebars()
+        focus("input")
+      end
+    end,
+    function(self)
+      local item = sidebar.history[vim.api.nvim_win_get_cursor(self.win)[1]]
+      if not item then
         return
       end
-      local ok, err = require("luma").history_delete(item.id, { scope = "chat" })
-      if not ok then
-        vim.notify("luma: " .. err, vim.log.levels.ERROR)
-      end
-    end)
-  end)
+      vim.ui.select(
+        { "Delete", "Cancel" },
+        { prompt = "Delete this history entry? " },
+        function(choice)
+          if choice ~= "Delete" then
+            return
+          end
+          local ok, err = require("luma").history_delete(item.id, { scope = "chat" })
+          if not ok then
+            vim.notify("luma: " .. err, vim.log.levels.ERROR)
+          end
+        end
+      )
+    end
+  )
 
   M.output:show()
   M.input:show()
@@ -452,8 +470,10 @@ local function create_split()
   M.input = Win(vim.tbl_deep_extend("force", common(" Prompt ", true), {
     position = cfg.position,
     width = vertical and cfg.width or nil,
-    height = vertical and nil
-      or math.max(3, math.floor((type(cfg.height) == "number" and cfg.height or 12) * cfg.input_height)),
+    height = vertical and nil or math.max(
+      3,
+      math.floor((type(cfg.height) == "number" and cfg.height or 12) * cfg.input_height)
+    ),
     stack = true,
     enter = true,
   }))
@@ -530,7 +550,13 @@ end
 ---@param text? string
 function M.set_input(text)
   M.open()
-  vim.api.nvim_buf_set_lines(M.input.buf, 0, -1, false, vim.split(text or "", "\n", { plain = true }))
+  vim.api.nvim_buf_set_lines(
+    M.input.buf,
+    0,
+    -1,
+    false,
+    vim.split(text or "", "\n", { plain = true })
+  )
 end
 
 function M.clear_input()
@@ -574,7 +600,14 @@ function M.render_stream(delta, title)
   local last = vim.api.nvim_buf_line_count(M.output.buf) - 1
   local line = vim.api.nvim_buf_get_lines(M.output.buf, last, last + 1, false)[1] or ""
   vim.bo[M.output.buf].modifiable = true
-  vim.api.nvim_buf_set_text(M.output.buf, last, #line, last, #line, vim.split(delta, "\n", { plain = true }))
+  vim.api.nvim_buf_set_text(
+    M.output.buf,
+    last,
+    #line,
+    last,
+    #line,
+    vim.split(delta, "\n", { plain = true })
+  )
   vim.bo[M.output.buf].modifiable = false
   M.output:set_title(title or " Luma ")
   if follow then

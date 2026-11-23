@@ -216,7 +216,10 @@ function M.start(model, messages, opts)
         return
       end
       done = true
-      debug.log("request.cancel", { id = id, elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000) })
+      debug.log(
+        "request.cancel",
+        { id = id, elapsed_ms = math.floor((vim.uv.hrtime() - started) / 1000000) }
+      )
       pcall(process.kill, process, 15)
     end,
   }
