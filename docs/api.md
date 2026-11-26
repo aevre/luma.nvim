@@ -41,7 +41,7 @@ luma.resend()
 luma.model(name?)
 ```
 
-Passing a configured name switches directly. Omitting the name opens a selector.
+Passing a configured name switches directly. Omitting the name opens a selector. A successful switch reports the selected model. Tools without an explicit `model` use the current main-chat model.
 
 ### Tools
 

@@ -241,6 +241,7 @@ function M.set_model(name)
   M.model = name
   render()
   require("luma.ui").refresh_sidebars()
+  vim.notify("luma: model set to " .. name, vim.log.levels.INFO)
 end
 
 ---@param text string

@@ -275,7 +275,11 @@ local function test_tools_registry()
   local history_dir = vim.fn.tempname()
   require("luma.config").setup({
     history = { path = history_dir, max = 20 },
-    models = { { name = "only", backend = "ollama", model = "tiny" } },
+    model = "only",
+    models = {
+      { name = "only", backend = "ollama", model = "tiny" },
+      { name = "alternate", backend = "ollama", model = "alternate" },
+    },
   })
   local tools = require("luma.tools")
   local invalid_generate = { title = "invalid" } ---@type any
@@ -327,6 +331,10 @@ local function test_tools_registry()
   assert(
     saved[1].messages[1].content == "remember me" and saved[1].messages[2].content == "translated"
   )
+  require("luma.session").set_model("alternate")
+  tools.generate({ system = "system", user = "user", loading = false })
+  assert(received.model.name == "alternate")
+  require("luma.session").set_model("only")
   assert(vim.bo[history_panel.buf].modifiable)
   vim.api.nvim_buf_set_lines(history_panel.buf, 0, -1, false, { "edited result" })
   assert(history_panel:get_text() == "edited result")

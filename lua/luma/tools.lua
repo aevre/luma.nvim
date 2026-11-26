@@ -373,7 +373,9 @@ function M.generate(spec)
   next_request_id = next_request_id + 1
   local request_id = next_request_id
   local clear_spinner = spinner(loading)
-  local model_name = spec.model or require("luma.config").get().model
+  local model_name = spec.model
+    or require("luma.session").current_model()
+    or require("luma.config").get().model
   local model = require("luma.models").get(model_name)
   if not model then
     clear_spinner()
