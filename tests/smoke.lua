@@ -81,6 +81,15 @@ local function test_ollama_parser()
   assert(table.concat(chunks) == "onetwo")
 end
 
+local function test_ollama_think_option()
+  local body = require("luma.backend").body(
+    { backend = "ollama", model = "qwen3.5:4b", stream = true, think = false },
+    {},
+    { stream = true }
+  )
+  assert(body.think == false)
+end
+
 local function test_empty_response()
   local original_system = vim.system
   local original_notify = vim.notify
@@ -587,6 +596,44 @@ local function test_tool_chat()
   assert(tool_chat._chats.translate == nil)
 end
 
+local function test_diff_layout()
+  local source = vim.api.nvim_create_buf(true, true)
+  vim.api.nvim_buf_set_lines(source, 0, -1, false, { "before" })
+  local existing = {}
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    existing[win] = true
+  end
+
+  require("luma.diff").show("before", "after", {
+    bufnr = source,
+    start_line = 1,
+    end_line = 1,
+    start_col = 1,
+    end_col = 6,
+    changedtick = vim.api.nvim_buf_get_changedtick(source),
+  })
+  local panels = {}
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if not existing[win] then
+      panels[#panels + 1] = win
+    end
+  end
+  assert(#panels == 2)
+  table.sort(panels, function(a, b)
+    return vim.api.nvim_win_get_config(a).col < vim.api.nvim_win_get_config(b).col
+  end)
+  local left = vim.api.nvim_win_get_config(panels[1])
+  local right = vim.api.nvim_win_get_config(panels[2])
+  local gap = right.col - (left.col + left.width + 2)
+  assert(gap >= 0 and gap <= 1)
+  vim.api.nvim_win_call(panels[2], function()
+    vim.fn.maparg("q", "n", false, true).callback()
+  end)
+  assert(not vim.api.nvim_win_is_valid(panels[1]))
+  assert(not vim.api.nvim_win_is_valid(panels[2]))
+  vim.api.nvim_buf_delete(source, { force = true })
+end
+
 local function test_window_lifecycle()
   local Win = require("win")
   assert(type(require("animate")) == "table")
@@ -720,6 +767,7 @@ local function test()
   test_openai_parser()
   test_openai_json_fallback()
   test_ollama_parser()
+  test_ollama_think_option()
   test_empty_response()
   test_large_request_body_uses_stdin()
   test_visual_selection()
@@ -727,6 +775,7 @@ local function test()
   test_history()
   test_tools_registry()
   test_tool_chat()
+  test_diff_layout()
   test_window_lifecycle()
 end
 

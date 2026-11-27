@@ -13,6 +13,7 @@
 ---@field api_key? luma.ApiKey
 ---@field headers? string[]
 ---@field stream? boolean
+---@field think? boolean
 ---@field timeout? integer
 
 ---@class luma.ModelConfig: luma.ModelInput
@@ -21,6 +22,7 @@
 ---@field model string
 ---@field url string
 ---@field stream boolean
+---@field think? boolean
 
 ---@class luma.UIInput
 ---@field position? "float"|"left"|"right"|"top"|"bottom"

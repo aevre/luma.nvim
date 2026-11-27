@@ -141,7 +141,7 @@ function M.show(source, proposed, selection)
   }))
   right = Win(vim.tbl_deep_extend("force", common, {
     title = " Rewrite ",
-    col = 0.52,
+    col = 0.48,
     enter = true,
     text = vim.split(proposed, "\n", { plain = true }),
   }))

@@ -189,9 +189,14 @@ function M.body(model, messages, cfg)
   if cfg.max_tokens ~= nil then
     body.max_tokens = cfg.max_tokens
   end
-  if model.backend == "ollama" and cfg.max_tokens ~= nil then
-    body.max_tokens = nil
-    body.options = { num_predict = cfg.max_tokens }
+  if model.backend == "ollama" then
+    if cfg.max_tokens ~= nil then
+      body.max_tokens = nil
+      body.options = { num_predict = cfg.max_tokens }
+    end
+    if model.think ~= nil then
+      body.think = model.think
+    end
   end
   return body
 end
