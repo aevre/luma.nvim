@@ -82,11 +82,15 @@ local function test_ollama_parser()
 end
 
 local function test_ollama_think_option()
-  local body = require("luma.backend").body(
-    { backend = "ollama", model = "qwen3.5:4b", stream = true, think = false },
-    {},
-    { stream = true }
-  )
+  local model = {
+    name = "test",
+    url = "http://test",
+    backend = "ollama",
+    model = "qwen3.5:4b",
+    stream = true,
+    think = false,
+  }
+  local body = require("luma.backend").body(model, {}, require("luma.config").get())
   assert(body.think == false)
 end
 
@@ -137,6 +141,65 @@ local function test_empty_response()
   assert(error_message == "provider returned an empty response")
   assert(debug_message and debug_message:find("response_bytes=26", 1, true))
   assert(debug_message:find("response_chunks=1", 1, true))
+  assert(debug_message:find("response_events=1", 1, true))
+  assert(debug_message:find("response_last=message:table,content:string(0 bytes)", 1, true))
+end
+
+local function test_stream_response_debug_shape()
+  local original_system = vim.system
+  local original_notify = vim.notify
+  local logs = {}
+  local completed = false
+  require("luma.config").setup({
+    debug = true,
+    models = { { name = "test", backend = "openai", model = "test" } },
+  })
+  rawset(vim, "notify", function(text, level)
+    if level == vim.log.levels.DEBUG then
+      logs[#logs + 1] = text
+    end
+  end)
+  rawset(vim, "system", function(_, opts, callback)
+    opts.stdout(nil, 'data: {"choices":[{"delta":{"content":"private output"}}]}\n\n')
+    opts.stdout(nil, 'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n')
+    opts.stdout(nil, "data: [DONE]\n\n")
+    vim.schedule(function()
+      callback({ code = 0, stdout = "", stderr = "" })
+    end)
+    return { kill = function() end }
+  end)
+  require("luma.request").start({
+    name = "test",
+    backend = "openai",
+    model = "test",
+    url = "http://test",
+    stream = true,
+  }, {}, {
+    on_delta = function(text)
+      assert(text == "private output")
+    end,
+    on_error = function(err)
+      error(err)
+    end,
+    on_done = function()
+      completed = true
+    end,
+  })
+  assert(vim.wait(100, function()
+    return completed
+  end))
+  rawset(vim, "system", original_system)
+  rawset(vim, "notify", original_notify)
+  require("luma.config").setup({
+    models = { { name = "test", backend = "openai", model = "test" } },
+  })
+  local output = table.concat(logs, "\n")
+  assert(output:find("response_events=2", 1, true))
+  assert(output:find("response_first=choices:table,delta:table,content:string(14 bytes)", 1, true))
+  assert(
+    output:find("response_last=choices:table,delta:table,finish_reason:string,finish=stop", 1, true)
+  )
+  assert(not output:find("private output", 1, true))
 end
 
 local function test_large_request_body_uses_stdin()
@@ -769,6 +832,7 @@ local function test()
   test_ollama_parser()
   test_ollama_think_option()
   test_empty_response()
+  test_stream_response_debug_shape()
   test_large_request_body_uses_stdin()
   test_visual_selection()
   test_context_completion()

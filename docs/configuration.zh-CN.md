@@ -31,7 +31,7 @@ require("luma").setup({
 | `max_tokens`        | `nil`            | 可选的 provider token 限制。               |
 | `temperature`       | `nil`            | 可选的 provider temperature。              |
 | `diagnostics`       | `false`          | 主 Chat 提交时加入来源 Buffer 的诊断信息。 |
-| `debug`             | `false`          | 通过 `vim.notify` 输出请求生命周期日志。   |
+| `debug`             | `false`          | 通过 `vim.notify` 输出请求生命周期、响应结构摘要及 provider 错误，不转储 Prompt 或原始响应体。 |
 | `max_context_bytes` | `200000`         | `/buffer` 和 `/file` 共用的字节限制。      |
 
 ## 模型

@@ -31,7 +31,7 @@ require("luma").setup({
 | `max_tokens`        | `nil`                   | Optional provider token limit.                          |
 | `temperature`       | `nil`                   | Optional provider temperature.                          |
 | `diagnostics`       | `false`                 | Add source-buffer diagnostics to main-chat submissions. |
-| `debug`             | `false`                 | Log request lifecycle events through `vim.notify`.      |
+| `debug`             | `false`                 | Log request lifecycle, response structure, and provider errors through `vim.notify` without dumping prompts or raw response bodies. |
 | `max_context_bytes` | `200000`                | Shared byte limit for `/buffer` and `/file` context.    |
 
 ## Models

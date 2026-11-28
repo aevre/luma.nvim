@@ -40,11 +40,11 @@ end
 ---@param model luma.ModelConfig
 ---@param on_delta luma.DeltaCallback
 ---@return luma.StreamParser
-local function parser_for(model, on_delta)
+local function parser_for(model, on_delta, on_response)
   if model.backend == "ollama" then
-    return backend.ollama_parser(on_delta)
+    return backend.ollama_parser(on_delta, on_response)
   end
-  return backend.openai_parser(on_delta)
+  return backend.openai_parser(on_delta, on_response)
 end
 
 ---Start curl and marshal all completion callbacks onto Neovim's main loop.
@@ -63,7 +63,18 @@ function M.start(model, messages, opts)
   local output_bytes = 0
   local response_bytes = 0
   local response_chunks = 0
+  local response_events = 0
+  local first_shape
+  local last_shape
   local debug = require("luma.debug")
+  local function observe_response(data)
+    if not cfg.debug then
+      return
+    end
+    response_events = response_events + 1
+    last_shape = backend.response_shape(data)
+    first_shape = first_shape or last_shape
+  end
   debug.log("request.start", {
     id = id,
     backend = model.backend,
@@ -71,6 +82,10 @@ function M.start(model, messages, opts)
     stream = stream,
     messages = #messages,
     input_bytes = message_bytes(messages),
+    timeout_ms = model.timeout or cfg.timeout,
+    temperature = body.temperature,
+    max_tokens = body.max_tokens or (body.options and body.options.num_predict),
+    think = body.think,
   })
   local stdout = ""
   local stderr = ""
@@ -126,7 +141,7 @@ function M.start(model, messages, opts)
         else
           opts.on_delta(text)
         end
-      end)
+      end, observe_response)
     or nil
 
   local process = vim.system(args, {
@@ -171,25 +186,31 @@ function M.start(model, messages, opts)
         response_chunks = response_chunks,
         stderr_bytes = #clean_stderr,
       }
+      local function log_result(event)
+        diagnostics.response_events = response_events
+        diagnostics.response_first = first_shape
+        diagnostics.response_last = last_shape
+        debug.log(event, diagnostics)
+      end
       if result.code ~= 0 then
         local message = vim.trim(clean_stderr ~= "" and clean_stderr or "curl failed")
         local err = ("request failed (%d): %s"):format(result.code, message)
         diagnostics.error = err
-        debug.log("request.error", diagnostics)
+        log_result("request.error")
         opts.on_error(err)
         return
       end
       if parse_error then
         diagnostics.error = parse_error
-        debug.log("request.error", diagnostics)
+        log_result("request.error")
         opts.on_error(parse_error)
         return
       end
       if not stream then
-        local text, err = backend.parse_response(model, stdout)
+        local text, err = backend.parse_response(model, stdout, observe_response)
         if not text then
           diagnostics.error = err
-          debug.log("request.error", diagnostics)
+          log_result("request.error")
           opts.on_error(err or "provider response could not be parsed")
           return
         end
@@ -200,12 +221,12 @@ function M.start(model, messages, opts)
       if not received then
         local err = "provider returned an empty response"
         diagnostics.error = err
-        debug.log("request.error", diagnostics)
+        log_result("request.error")
         opts.on_error(err)
         return
       end
       diagnostics.output_bytes = output_bytes
-      debug.log("request.done", diagnostics)
+      log_result("request.done")
       opts.on_done()
     end)
   end)

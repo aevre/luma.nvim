@@ -8,20 +8,66 @@
 ---@field temperature? number
 ---@field max_tokens? integer
 ---@field options? { num_predict: integer }
+---@field think? boolean
 
 local M = {}
+
+---Record response structure without logging provider-generated text.
+---@param data table
+---@return string
+function M.response_shape(data)
+  if type(data) ~= "table" then
+    return "unexpected:" .. type(data)
+  end
+  local parts = {}
+  for _, key in ipairs({ "choices", "message", "response", "error", "done", "usage", "output" }) do
+    if data[key] ~= nil then
+      parts[#parts + 1] = key .. ":" .. type(data[key])
+    end
+  end
+  local choice = type(data.choices) == "table" and data.choices[1] or nil
+  if type(choice) == "table" then
+    for _, key in ipairs({ "delta", "message", "finish_reason" }) do
+      if choice[key] ~= nil then
+        local value = choice[key]
+        parts[#parts + 1] = key .. ":" .. type(value)
+        if
+          key == "finish_reason" and (value == "stop" or value == "length" or value == "tool_calls")
+        then
+          parts[#parts + 1] = "finish=" .. value
+        end
+      end
+    end
+  end
+  local message = type(choice) == "table" and (choice.delta or choice.message) or data.message
+  if type(message) == "table" then
+    for _, key in ipairs({ "content", "reasoning_content", "thinking" }) do
+      if message[key] ~= nil then
+        local value = message[key]
+        parts[#parts + 1] = key
+          .. ":"
+          .. type(value)
+          .. (type(value) == "string" and ("(%d bytes)"):format(#value) or "")
+      end
+    end
+  end
+  return #parts > 0 and table.concat(parts, ",") or "unrecognized"
+end
 
 ---@param payload string
 ---@param on_delta luma.DeltaCallback
 ---@return boolean? done
 ---@return string? error
-local function emit_openai(payload, on_delta)
+local function emit_openai(payload, on_delta, on_response)
   if payload == "[DONE]" then
     return true
   end
   local ok, data = pcall(vim.json.decode, payload)
   if not ok then
     return nil, "invalid OpenAI stream JSON: " .. tostring(data)
+  end
+  if on_response then
+    on_response(data)
   end
   if data.error then
     return nil, data.error.message or vim.inspect(data.error)
@@ -39,10 +85,13 @@ end
 ---@param on_delta luma.DeltaCallback
 ---@return boolean? done
 ---@return string? error
-local function emit_openai_response(payload, on_delta)
+local function emit_openai_response(payload, on_delta, on_response)
   local ok, data = pcall(vim.json.decode, payload)
   if not ok then
     return nil, "OpenAI stream response was neither SSE nor valid JSON: " .. tostring(data)
+  end
+  if on_response then
+    on_response(data)
   end
   if data.error then
     local err = type(data.error) == "table" and (data.error.message or vim.inspect(data.error))
@@ -61,8 +110,9 @@ end
 
 ---Parse server-sent events, emitting one event only after its blank-line terminator.
 ---@param on_delta luma.DeltaCallback
+---@param on_response? fun(data: table)
 ---@return luma.StreamParser
-function M.openai_parser(on_delta)
+function M.openai_parser(on_delta, on_response)
   local state = {
     buffer = "",
     event = {},
@@ -76,7 +126,7 @@ function M.openai_parser(on_delta)
     end
     local payload = table.concat(state.event, "\n")
     state.event = {}
-    return emit_openai(payload, on_delta)
+    return emit_openai(payload, on_delta, on_response)
   end
 
   return function(chunk, eof)
@@ -119,7 +169,7 @@ function M.openai_parser(on_delta)
       end
       local payload = vim.trim(state.fallback)
       if payload ~= "" then
-        return emit_openai_response(payload, on_delta)
+        return emit_openai_response(payload, on_delta, on_response)
       end
       return false
     end
@@ -129,8 +179,9 @@ end
 
 ---Parse Ollama's newline-delimited JSON stream while preserving partial lines.
 ---@param on_delta luma.DeltaCallback
+---@param on_response? fun(data: table)
 ---@return luma.StreamParser
-function M.ollama_parser(on_delta)
+function M.ollama_parser(on_delta, on_response)
   local buffer = ""
   local function process(line)
     if line == "" then
@@ -139,6 +190,9 @@ function M.ollama_parser(on_delta)
     local ok, data = pcall(vim.json.decode, line)
     if not ok then
       return nil, "invalid Ollama stream JSON: " .. tostring(data)
+    end
+    if on_response then
+      on_response(data)
     end
     if data.error then
       return nil, tostring(data.error)
@@ -203,12 +257,16 @@ end
 
 ---@param model luma.ModelConfig
 ---@param text string
+---@param on_response? fun(data: table)
 ---@return string? content
 ---@return string? error
-function M.parse_response(model, text)
+function M.parse_response(model, text, on_response)
   local ok, data = pcall(vim.json.decode, text)
   if not ok then
     return nil, "invalid JSON response: " .. tostring(data)
+  end
+  if on_response then
+    on_response(data)
   end
   if data.error then
     local err = type(data.error) == "table" and (data.error.message or vim.inspect(data.error))
